@@ -154,9 +154,13 @@ def run_program(
             "pose_planning": ("curobo-integrated",),
         }
     elif benchmark == "so101":
+        from .so101.perception import runtime_identity as perception_identity
+
+        so101_perception = perception_identity(metadata.task_name)
         provider_capabilities = {
-            "segmentation": None,
-            "grasping": (),
+            "segmentation": so101_perception["backend"],
+            "perception": so101_perception,
+            "grasping": ("so101-geometric",),
             "ik": ("so101",),
             "trajectory_planning": ("interpolation", "so101"),
             "pose_planning": ("composed",),
@@ -318,8 +322,15 @@ def run_program(
             contact_graspnet = TracedProvider(ContactGraspNetProvider(), recorder, "contact_graspnet")
         if benchmark == "so101":
             from .so101.integration import make_api
+            from .so101.perception import provider as perception_provider
 
-            api = make_api(adapter, recorder=recorder)
+            api = make_api(
+                adapter,
+                segmentation_provider=TracedProvider(
+                    perception_provider(so101_perception), recorder, so101_perception["backend"]
+                ),
+                recorder=recorder,
+            )
         elif benchmark == "behavior":
             from .contracts import MotionStrategy
 
