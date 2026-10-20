@@ -141,9 +141,10 @@ class CapApi:
             )
             for arm, value in source.items():
                 joints = np.asarray(value, dtype=np.float64)
-                if joints.shape not in {(6,), (7,)} or not bool(np.all(np.isfinite(joints))):
+                dimension = JOINT_DIMENSIONS[self._embodiment]
+                if joints.shape != (dimension,) or not bool(np.all(np.isfinite(joints))):
                     raise ValueError(
-                        "home_joint_positions must contain finite 6- or 7-joint vectors"
+                        f"home_joint_positions must contain finite {dimension}-joint vectors"
                     )
                 self._home_joint_positions[str(arm)] = joints.copy()
 
