@@ -195,4 +195,5 @@ def test_recorded_runner_needs_no_perception_or_planning_service(adapter, monkey
     assert outcome.termination_reason == "program_completed"
     recorded = json.loads((outcome.run_dir / "run.json").read_text())
     assert recorded["providers"]["segmentation"] is None
-    assert not recorded["providers"]["ik"]
+    assert recorded["providers"]["ik"] == ["so101"]
+    assert recorded["providers"]["trajectory_planning"] == ["interpolation", "so101"]

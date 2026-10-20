@@ -10,6 +10,7 @@ from cap_harness.contracts import (
     CameraObservation,
     GraspCandidate,
     GraspSet,
+    MotionStrategy,
     Observation,
     PlanningScene,
     PointCloud,
@@ -116,3 +117,8 @@ def test_contact_target_must_share_the_planning_frame():
 def test_empty_default_grasp_provider_is_rejected(backend):
     with pytest.raises(ValueError, match="default_grasp_backend"):
         api_fixture(default_grasp_backend=backend)
+
+
+def test_so101_planner_is_a_valid_explicit_motion_strategy():
+    strategy = MotionStrategy(ik_solver="so101", trajectory_planner="so101")
+    assert strategy.trajectory_planner == "so101"

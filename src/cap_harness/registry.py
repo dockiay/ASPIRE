@@ -80,6 +80,9 @@ SO101_PUBLIC_TOOL_NAMES = frozenset(
         "so101.get_task_metadata",
         "so101.get_controller_metadata",
         "so101.get_finger_contacts",
+        "so101.get_gripper_geometry",
+        "so101.check_joint_path",
+        "so101.solve_point_axis_ik",
         "so101.command_gripper",
         "so101.command_joints",
     }
