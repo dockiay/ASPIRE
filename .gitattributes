@@ -1,0 +1,2 @@
+# Skill promotion verifies bytes, so checkout must not rewrite their line endings.
+configs/so101/skills/** text eol=lf

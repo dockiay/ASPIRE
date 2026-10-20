@@ -143,6 +143,11 @@ def get_status(fix_code: Path | None, trials: int) -> str:
     """
     if fix_code is None or not fix_code.exists():
         return "pending"
+    so101_state = read_json(fix_code.parent / "so101-pipeline.json")
+    if so101_state is not None:
+        if so101_state.get("status") == "done" and trials >= DONE_THRESHOLD:
+            return "done"
+        return "stage1-done" if so101_state.get("status") == "stage1-done" else "stage1-running"
     if trials >= DONE_THRESHOLD:
         return "done"
     report_path = fix_code.parent / "skill_report.json"
@@ -245,6 +250,19 @@ def fmt_rate(passes: int, trials: int) -> str:
     return f"{passes}/{trials} ({pct}%)"
 
 
+def campaign_library(run_root: Path) -> tuple[str, str]:
+    settings = read_json(run_root / "campaign.json") or {}
+    if settings.get("schema") == "so101-aspire-pipeline-v2":
+        try:
+            from cap_harness.so101.skills import snapshot
+
+            directory = Path(settings.get("skill_library_directory", Path(__file__).resolve().parents[4] / "configs/so101/skills"))
+            return snapshot(directory)["sha256"], "applicable SO-101 library"
+        except ImportError:
+            return settings["skill_library"]["sha256"], "frozen SO-101 library snapshot; current library unavailable"
+    return skill_library_sha(), "content hash of skills/"
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -274,7 +292,7 @@ def main() -> None:
     heldout = heldout_seeds(run_root)
     HELDOUT_SEEDS = [str(seed) for seed in heldout]
     DONE_THRESHOLD = len(heldout)
-    current_library = skill_library_sha()
+    current_library, library_scope = campaign_library(run_root)
 
     lines = []
     lines.append("# Iterative Debugging Progress")
@@ -284,8 +302,7 @@ def main() -> None:
         " — do not edit manually.*"
     )
     lines.append(
-        f"**Status key:** `done` = {DONE_THRESHOLD} coherent held-out trials (seeds 1–"
-        f"{DONE_THRESHOLD}) | `stage1-done` selected fix"
+        f"**Status key:** `done` = {DONE_THRESHOLD} coherent held-out trials (seeds {','.join(HELDOUT_SEEDS)}) | `stage1-done` selected fix"
         " awaiting or continuing validation | `stage1-running` worker not finished |"
         " `pending` Stage 1 and final code selection required"
     )
@@ -294,7 +311,7 @@ def main() -> None:
         " the fix from the skill alone, promotable | `refuted` = it could not, do not promote |"
         " `invalid`/`missing` = the report cannot be graded, and the task's findings are stranded"
     )
-    lines.append(f"**Skill library:** `{current_library}` (content hash of `skills/`)")
+    lines.append(f"**Skill library:** `{current_library}` ({library_scope})")
     lines.append("")
 
     pending_tasks = []

@@ -31,10 +31,10 @@ advance environment control time.
 | `shared_atomic` | `get_robot_state()` | `RobotState` | No | Read joint, gripper, end-effector, frame, and timestamp state. |
 | `shared_atomic` | `segment_text(camera_name, text)` | `SegmentationSet` | No | Segment objects in one current camera image using a text prompt. |
 | `shared_atomic` | `segment_points(camera_name, points_px)` | `SegmentationSet` | No | Segment from an `N x 2` list of image-space point prompts. |
-| `shared_atomic` | `mask_to_point_cloud(mask, camera_name, target_frame=None, *, erosion_pixels=0, depth_range_m=None)` | `PointCloud` | No | Project a public depth mask; omitted frame selects the observed robot base. Optional explicit filters preserve the supplied mask. |
+| `shared_atomic` | `mask_to_point_cloud(mask, camera_name, target_frame=None, *, erosion_pixels=0, depth_range_m=None)` | `PointCloud` | No | Project public depth into the measured robot's base frame by default, or an explicit named frame. |
 | `shared_atomic` | `crop_point_cloud(point_cloud, lower_xyz, upper_xyz)` | `PointCloud` | No | Keep points inside inclusive framed XYZ bounds, preserving aligned colors. |
 | `shared_atomic` | `estimate_geometry(point_cloud)` | `ObjectGeometry` | No | Estimate a framed center, orientation, and extents from a point cloud. |
-| `shared_atomic` | `generate_grasps(camera_name, mask, backend=None, max_candidates=5)` | `GraspSet` | No | Use the configured default grasp backend (`contact-graspnet` unless overridden); explicit providers never fall back silently. |
+| `shared_atomic` | `generate_grasps(camera_name, mask, backend=None, max_candidates=5)` | `GraspSet` | No | Generate framed candidates using the configured default (`so101-geometric` for the SO-101 runner, otherwise `contact-graspnet`) or an explicit backend. |
 | `shared_atomic` | `solve_ik(target_pose, seed_joints=None, *, arm="primary", backend=None)` | `IKResult` | No | Solve one arm pose with the named IK backend; `None` means the benchmark's default (`pyroki`, or `curobo` on `behavior`). |
 | `shared_atomic` | `plan_motion(goal, start_joints=None, *, arm="primary", strategy=None)` | `PlanResult` | No | Plan to a pose or joint goal using a `MotionStrategy`. |
 | `shared_atomic` | `plan_synchronized_motion(targets, strategy=None)` | `SynchronizedPlanResult` | No | Plan same-tick motion for every arm in the current embodiment. |
@@ -90,6 +90,35 @@ return typed failures; the harness never falls back implicitly. `move_to_joints(
 are direct servo operations rather than collision-aware plans. Synchronized pose planning requires
 targets for every arm and defaults to cuRobo-integrated.
 
+SO-101 defaults to local `so101` IK and bounded RRT-Connect trajectory search
+through these same shared functions. The planner checks observed RGB-D points,
+robot collision geometry and the work plane; occluded space and physical tracking
+remain uncertified. `target_point_cloud` retains the object in the SO-101 scene,
+permitting contact only on distal pads near its observed samples. Direct joint
+commands and explicitly selected interpolation do not search around obstacles.
+Its five axes cannot realize every 6D pose: the
+solver returns a typed failure when position/orientation tolerances cannot both
+be met. It uses only the official robot model and measured robot state, without
+task geometry. The configured grasp default is `so101-geometric`, a bounded
+geometry/IK heuristic for the angular jaw, not Contact-GraspNet. Candidates carry
+opening, joint target and pregrasp metadata; they are not verified grasps.
+Full strawberry
+harvesting defaults to ASPIRE's SAM3 service on public RGB, composed with
+calibrated public depth for visible-surface geometry. Legacy control lessons
+default to `color-rgbd`; that explicit baseline is also selectable for comparison.
+No color fallback is used when SAM3 fails. The old color-only
+`so101.localize_ripe_fruit` is disabled with SAM3. See
+[the SO-101 worker profile](so101-iterative-debugging.md). SO-101's simulated
+position-controlled gripper accepts intermediate normalized targets.
+
+SO-101 additionally exposes `so101.get_gripper_geometry(opening=None)` for
+robot-only distal surfaces and an opening-dependent grasp frame,
+`so101.command_gripper(...)` for rate-bounded motion with substep virtual-force
+supervision, and `so101.check_joint_path(...)` for conservative robot/point-cloud
+checks. Force/contact stops report their reason and measured aperture; they do
+not imply the requested aperture was reached. Point-cloud clearance does not
+certify occluded geometry. See the worker profile for the complete contract.
+
 ### Cartesian pose inputs
 
 `move_to_pose` accepts a Python `Pose` or a mapping with `position` in metres,
@@ -132,8 +161,6 @@ schema.
 | `extension` | `libero.get_controller_metadata()` | Action dimension/bounds, arms, cameras, frequency/period, controller, gripper and joint-command semantics, action modes |
 | `extension` | `robosuite.get_task_metadata()` | `arms`, `camera_names`, `environment`, `family`, `language`, `robots`, `suite_name`, task identity |
 | `extension` | `robosuite.get_controller_metadata()` | Action dimension/bounds, arms, base frame, cameras, frequency/period, controller, controllable grippers, action modes |
-| `extension` | `so101.get_finger_contacts()` | Current virtual distal-finger forces and tool-local positions; simulation only, no object identity or task verdict. |
-| `extension` | `so101.command_gripper(...)` / `so101.command_joints(...)` | Bounded position commands with physics-substep force/contact guards; inspect `stop_reason` and `completed`. See [SO-101 control semantics](so101.md#supervised-simulation-control). |
 | `extension` | `behavior.get_task_metadata()` | `activity_name`, `arms`, `camera_names`, `family`, `instance_id`, `language`, `scene_model`, `suite_name`, `support_prompt`, `target_prompt`, task identity |
 | `extension` | `behavior.get_controller_metadata()` | Action dimension/bounds, arms, base frame `odom`, `base_pose`, cameras, frequency/period, controller, controllable grippers, `torso_positions`, `torso_lower_bounds`, `torso_upper_bounds` |
 | `extension` | `behavior.get_base_pose()` | `(x, y, yaw)` of the base footprint in `odom` |
@@ -148,7 +175,6 @@ schema.
 | --- | --- | --- | --- | --- |
 | LIBERO-Pro | `primary` | `robot_base` | `agentview`, `robot0_eye_in_hand` | Seven-joint Panda plus normalized gripper at 20 Hz. |
 | Robosuite | `primary`, optionally `secondary` | `robot0_base` | Agent view and one eye-in-hand camera per robot | Single- or bimanual Panda joint control at 20 Hz. |
-| SO-101 simulation | `primary` | `so101_base` | `agentview`, `sideview` | Five arm joints plus a separately normalized angular gripper; absolute-position targets at 20 Hz by default. See [setup and scope](so101.md). |
 | BEHAVIOR-1K | `primary` (left), `secondary` (right) | `odom`, fixed where the base stood at instance load | `head`, `left_wrist`, `right_wrist` | R1 Pro seven-joint arms plus normalized grippers at 30 Hz; the holonomic base and the torso move only through the `behavior.*` extensions, and every pose stays valid after the base drives. |
 
 `get_task_context().language` is the authoritative per-episode instruction.
@@ -178,7 +204,7 @@ Returned objects expose validated attributes:
 | --- | --- |
 | `TaskContext` | Suite, task id/name, language, family, and public metadata. |
 | `Observation` | Camera mapping, `RobotState`, task context, and timestamp. |
-| `RobotState` | Per-arm joints, velocities, end-effector poses, grippers, names, and base frame; joint count follows `embodiment` (SO-101: 5, YAM: 6, Panda/R1 profiles: 7). |
+| `RobotState` | Per-arm 7-DoF joints, velocities, end-effector poses, grippers, names, and base frame. |
 | `SegmentationSet` | `ok`, masks, labels, scores, boxes, diagnostics, and typed error. |
 | `PointCloud` / `ObjectGeometry` | Framed points; estimated pose, extents, and point count. |
 | `GraspSet` / `GraspCandidate` | Framed candidate poses, scores, widths, diagnostics, and typed error. |
@@ -211,7 +237,8 @@ where a package currently re-exports their Python classes.
 ## Current limitations
 
 - For cross-benchmark projection, pass `target_frame=get_robot_state().base_frame` because
-  `mask_to_point_cloud()` currently defaults to LIBERO's `robot_base`.
+  `mask_to_point_cloud()` defaults to the current robot's base frame (`robot_base`
+  for LIBERO, `so101_base` for SO-101).
 - `segment_points()` does not expose provider point labels.
 - `execute_trajectory(..., stop_on_termination=False)` returns an unsupported failure.
 - Public step and execution results remove reward, success, and nested sensitive diagnostics.

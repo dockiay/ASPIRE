@@ -1,0 +1,21 @@
+{
+  "schema": "so101-fruitgym-assets-v1",
+  "repository": "https://github.com/emlynw/fruit-gym",
+  "commit": "397abec4122f6ee5f52a3801a4cefb07a8fd6642",
+  "checkout": "third_party/fruit_gym",
+  "license_declaration": "MIT in upstream pyproject.toml; upstream has no standalone LICENSE file",
+  "files": {
+    "README.md": "fd3704af8b7e092aefee1c98d93da32c8751fc0d1eaea5259e929fb0286f170b",
+    "pyproject.toml": "5bb415d59ed77d4a00f766948b9c2151aa5bd4280da0d1532e39978dfe65ee76",
+    "fruit_gym/envs/xmls/scene.xml": "74dc9e559c9d186548450e1b3270a30d5c30e9f3b5740cda041380e4332550ca",
+    "fruit_gym/envs/xmls/strawb_fork_double.xml": "2150637396f20523502dc16592be5e87eed694e521c8d84f9f5a7f51ba0d7f14",
+    "fruit_gym/envs/xmls/leaves.xml": "4fae8e8a4e7fc5aeaf219744dfec5ceeb2e9684b277058b0ead413bb1e0052ed",
+    "fruit_gym/envs/xmls/assets/sb1.obj": "669fdd31135761e78cd7550275a9759506815799d5444505eb13c6bb5f0fb5d3",
+    "fruit_gym/envs/xmls/assets/calyx1.obj": "03b81fa9f686bd16b1c07f9a9480c1c446147a62b5aab7aef078befc631d002c",
+    "fruit_gym/envs/xmls/assets/leaf_1.obj": "fd410eaca9ba4964b2aec2a37e9c414564f83e40c9f6874ca78fc17a3f5dd3b1",
+    "fruit_gym/envs/xmls/textures_small/r1.png": "543e909db1e6d0d939026a1edc7f35d9d3200701be53794e664011879c599229",
+    "fruit_gym/envs/xmls/textures_small/g1.png": "2a73fec391eaf195bdd2974eaa275d1ad4665c3474d8bce554a123c5c3491b94",
+    "fruit_gym/envs/xmls/textures_small/strawberry_leaves.png": "91c4c3315ac379f18038d9a1d75a068f0a5d278382d1404f5403fb794202fb7b",
+    "fruit_gym/envs/xmls/textures/leaf_g1.png": "df5eca65fc8e8faec2227260e05ac2d26c8b00fa6b847b5c08931886d76dd912"
+  }
+}

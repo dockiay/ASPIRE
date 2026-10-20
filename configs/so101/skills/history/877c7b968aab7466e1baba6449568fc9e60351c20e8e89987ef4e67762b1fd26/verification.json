@@ -1,0 +1,56 @@
+{
+  "schema": "so101-scoped-skill-verification-v1",
+  "skill": "two-view-ripe-fruit-localization.md",
+  "status": "verified",
+  "verdict": "verified",
+  "verification_contract": {
+    "id": "localize_ripe_fruit_v1",
+    "version": 1,
+    "goal": "Estimate the ripe fruit center from public RGB-D, without moving the robot.",
+    "maximum_error_m": 0.02,
+    "maximum_timestamp_error_s": 0.05,
+    "maximum_displacement_error_m": 0.01,
+    "maximum_control_steps": 0,
+    "frame": "so101_base",
+    "report": "result = {'skill_results': {'localize_ripe_fruit_v1': {'point_m': [x,y,z], 'frame': 'so101_base', 'timestamp_s': measured_time, 'camera_names': ['agentview']}}}. Coordinates must be computed during execution; use one or both public cameras.",
+    "scope": "Synthetic engineering center tolerance; not a physical-camera accuracy claim.",
+    "sha256": "ae8f28f362275721672bf1b23d6ddd27e59198c751e8311ce1f9852c8e6c2a63"
+  },
+  "criterion_passed": true,
+  "skill_application_verified": true,
+  "provenance_audit": "PASS",
+  "independent": true,
+  "no_proposer_code": true,
+  "library_sha256": "877c7b968aab7466e1baba6449568fc9e60351c20e8e89987ef4e67762b1fd26",
+  "inputs_sha256": "cc47ed34be8bb5c8dcc7434ec8f43efe41db8d1ee8eb360a792a2fab32a48ba0",
+  "comparison": {
+    "planned": 2,
+    "recorded": 2,
+    "pending": 0,
+    "exhausted": 0,
+    "program_ok": 2,
+    "task_success": 0,
+    "task_success_rate": 0.0,
+    "findings": {
+      "grasp_not_qualified": 2
+    },
+    "skill_success": 2,
+    "skill_success_rate": 1.0,
+    "verification_contract": {
+      "id": "localize_ripe_fruit_v1",
+      "version": 1,
+      "goal": "Estimate the ripe fruit center from public RGB-D, without moving the robot.",
+      "maximum_error_m": 0.02,
+      "maximum_timestamp_error_s": 0.05,
+      "maximum_displacement_error_m": 0.01,
+      "maximum_control_steps": 0,
+      "frame": "so101_base",
+      "report": "result = {'skill_results': {'localize_ripe_fruit_v1': {'point_m': [x,y,z], 'frame': 'so101_base', 'timestamp_s': measured_time, 'camera_names': ['agentview']}}}. Coordinates must be computed during execution; use one or both public cameras.",
+      "scope": "Synthetic engineering center tolerance; not a physical-camera accuracy claim.",
+      "sha256": "ae8f28f362275721672bf1b23d6ddd27e59198c751e8311ce1f9852c8e6c2a63"
+    }
+  },
+  "worker_session_sha256": "bc7da951ce1317222d7201600e1ebffc23254204d3665827dd6a1bba408d04b7",
+  "finish_sha256": "924f75b46f63bbda7194ad9bf92f05f0be27d513e2b47469d4558b0a888cf89a",
+  "promoted": false
+}

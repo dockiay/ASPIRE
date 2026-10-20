@@ -14,3 +14,7 @@ outputs/
 validation-output/
 .behavior-appdata/
 /third_party/so_arm100/
+/third_party/fruit_gym/
+/configs/so101/codex-local.json
+/configs/so101/*.local.json
+/configs/so101/skills/.lock

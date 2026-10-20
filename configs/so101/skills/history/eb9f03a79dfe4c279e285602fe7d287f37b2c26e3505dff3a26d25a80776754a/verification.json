@@ -1,0 +1,42 @@
+{
+  "schema": "so101-scoped-skill-verification-v1",
+  "skill": "geometry-centered-slow-opposing-grasp.md",
+  "status": "verified",
+  "verdict": "verified",
+  "verification_contract": {
+    "id": "grasp_ripe_fruit_v1",
+    "version": 1,
+    "goal": "Sustain a qualified opposing grasp for at least 0.5 seconds, without scene violations.",
+    "sha256": "4a674382fea736207005ad6870a92d6376523b9dc55716b7ae9233bec2a3766b"
+  },
+  "criterion_passed": true,
+  "skill_application_verified": true,
+  "provenance_audit": "PASS",
+  "independent": true,
+  "no_proposer_code": true,
+  "library_sha256": "eb9f03a79dfe4c279e285602fe7d287f37b2c26e3505dff3a26d25a80776754a",
+  "inputs_sha256": "41dc23228d0695352b0447114e425b4a78d735e03879adffb81fdb80150ad811",
+  "comparison": {
+    "planned": 2,
+    "recorded": 2,
+    "pending": 0,
+    "exhausted": 0,
+    "program_ok": 2,
+    "task_success": 0,
+    "task_success_rate": 0.0,
+    "findings": {
+      "junction_not_released": 2
+    },
+    "skill_success": 2,
+    "skill_success_rate": 1.0,
+    "verification_contract": {
+      "id": "grasp_ripe_fruit_v1",
+      "version": 1,
+      "goal": "Sustain a qualified opposing grasp for at least 0.5 seconds, without scene violations.",
+      "sha256": "4a674382fea736207005ad6870a92d6376523b9dc55716b7ae9233bec2a3766b"
+    }
+  },
+  "worker_session_sha256": "a60f29e2c13d91bde48faeda40b6fe4da6c1e777fcc2c75ca1d295e0f09b28b2",
+  "finish_sha256": "80bbbb57a705ad593035297ce3631144ce7906b38b441ae98a7ff60a4e2391db",
+  "promoted": false
+}

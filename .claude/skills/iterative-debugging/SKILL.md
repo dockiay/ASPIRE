@@ -5,6 +5,11 @@ description: "Run the baseline-free CaP iterative debugging (fix loop) pipeline 
 
 # Iterative Debugging (Fix Loop)
 
+For `so101` strawberry tasks, follow [so101/SKILL.md](so101/SKILL.md) and stop
+reading this generic run order. That profile adapts the coordinator, controlled
+worker, reserved evaluation and independently verified library to SO-101, with
+its own case protocol and provenance limits.
+
 For BEHAVIOR-1K (R1 Pro on Isaac Sim) use the sibling folder
 [behavior/SKILL.md](behavior/SKILL.md). It is a **different protocol**, not just different
 prompts: those tasks are long-horizon, so each seed grows its own policy one code block at a

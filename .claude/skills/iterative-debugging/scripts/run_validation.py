@@ -68,6 +68,8 @@ def benchmark_environment(benchmark: str, gpu: int | str, *, root: Path) -> dict
     from OMNIGIBSON_GPU_ID and needs the dataset and appdata roots; MuJoCo variables are
     irrelevant there and are not set.
     """
+    if benchmark == "so101":
+        return {"MUJOCO_GL": "glfw"}
     if benchmark == "behavior":
         home = Path(os.environ.get("HOME", "~")).expanduser()
         return {
@@ -136,10 +138,14 @@ def _stated_horizon(benchmark: str, suite: str, task_id: int) -> int:
     keeps working where that registry is not importable.
     """
     try:
-        if benchmark == "robosuite":
+        if benchmark in {"robosuite", "so101"}:
             from cap_harness.robosuite.registry import RobosuiteTaskRegistry
+            if benchmark == "so101":
+                from cap_harness.so101.registry import SO101TaskRegistry
 
-            stated = RobosuiteTaskRegistry().resolve(suite, task_id).horizon
+                stated = SO101TaskRegistry().resolve(suite, task_id).horizon
+            else:
+                stated = RobosuiteTaskRegistry().resolve(suite, task_id).horizon
         else:
             stated = None
     except ImportError as exc:
@@ -586,6 +592,9 @@ def main() -> int:
         write_json_atomic(manifest_path, manifest)
 
     env = os.environ.copy()
+    if args.benchmark == "so101":
+        for key in ("PYOPENGL_PLATFORM", "EGL_PLATFORM", "MUJOCO_EGL_DEVICE_ID"):
+            env.pop(key, None)
     env.update(benchmark_environment(args.benchmark, args.gpu, root=ROOT))
     # LIBERO prompts on stdin at import when this is unset, and a child with no
     # terminal dies with a bare `EOFError: EOF when reading a line`. The

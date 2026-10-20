@@ -1,0 +1,10 @@
+{
+  "version": "so101-fruitgym-harvest-agent-v1",
+  "suite": "so101_fruitgym_harvest",
+  "task_contract": "so101-fruitgym-harvest-v1",
+  "scope": "Development integration on one fixed scene; not a generalization benchmark",
+  "asset_manifest": "configs/so101/fruitgym-assets-v1.json",
+  "cases": [{"seed": 0, "partition": "development", "scene": "fixed_fruitgym_so101"}],
+  "reserved_partitions": [],
+  "success": "Ordered qualified grasp, mechanical release, 2 s free retention, >=15 cm carry, 0.25 s destination hold, release, base support and 1 s stable placement with open gripper withdrawn >=8 cm"
+}

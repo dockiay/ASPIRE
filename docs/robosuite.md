@@ -1,7 +1,8 @@
 # Robosuite
 
-The separate [`so101` simulation backend](so101.md) reuses this environment to
-run the official five-axis SO-101 model and a recorded joint-control task.
+The SO-101 learning environment uses the separate `so101` simulation profile,
+built from a Robosuite world and its MuJoCo bindings. See the Spanish
+[SO-101 ASPIRE guide](so101-aspire.md) for its five-axis public-API example.
 
 ## Setup
 
@@ -93,3 +94,8 @@ cap-harness run \
 cuRobo uses adapter calibration for its robot model. Integrated bimanual planning optimizes a
 combined 14-DoF trajectory and checks self-, scene-, and inter-arm collision; see
 [Optional Backends](optional-backends.md).
+
+The custom SO-101 strawberry benchmark uses Robosuite's MuJoCo bindings through
+the `so101` adapter and shared ASPIRE APIs. Its complete debugging, independent
+review, held-out evaluation and skill-verification workflow accepts either
+Codex or a Responses-compatible API: [SO-101 ASPIRE profile](so101-iterative-debugging.md).
