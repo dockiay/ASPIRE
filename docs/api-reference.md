@@ -175,7 +175,7 @@ Returned objects expose validated attributes:
 | --- | --- |
 | `TaskContext` | Suite, task id/name, language, family, and public metadata. |
 | `Observation` | Camera mapping, `RobotState`, task context, and timestamp. |
-| `RobotState` | Per-arm 7-DoF joints, velocities, end-effector poses, grippers, names, and base frame. |
+| `RobotState` | Per-arm joints, velocities, end-effector poses, grippers, names, and base frame; joint count follows `embodiment` (SO-101: 5, YAM: 6, Panda/R1 profiles: 7). |
 | `SegmentationSet` | `ok`, masks, labels, scores, boxes, diagnostics, and typed error. |
 | `PointCloud` / `ObjectGeometry` | Framed points; estimated pose, extents, and point count. |
 | `GraspSet` / `GraspCandidate` | Framed candidate poses, scores, widths, diagnostics, and typed error. |

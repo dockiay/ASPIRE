@@ -17,6 +17,7 @@ JOINT_DIMENSIONS: Mapping[str, int] = MappingProxyType(
         "behavior": 7,
         "libero": 7,
         "robosuite": 7,
+        "so101": 5,
         "yam_real": 6,
     }
 )
@@ -190,14 +191,20 @@ def _arm_vectors(
 def _joint_vector(value: object, name: str) -> np.ndarray:
     result = _array(value, name, shape=(None,))
     if result.shape[0] not in SUPPORTED_JOINT_DIMENSIONS:
-        raise ValueError(f"{name} must contain 6 or 7 joints, got {result.shape[0]}")
+        raise ValueError(
+            f"{name} must have a joint count in {sorted(SUPPORTED_JOINT_DIMENSIONS)}, "
+            f"got {result.shape[0]}"
+        )
     return result
 
 
 def _joint_matrix(value: object, name: str) -> np.ndarray:
     result = _array(value, name, shape=(None, None))
     if result.shape[1] not in SUPPORTED_JOINT_DIMENSIONS:
-        raise ValueError(f"{name} waypoints must contain 6 or 7 joints, got {result.shape[1]}")
+        raise ValueError(
+            f"{name} waypoints must have a joint count in {sorted(SUPPORTED_JOINT_DIMENSIONS)}, "
+            f"got {result.shape[1]}"
+        )
     return result
 
 
@@ -947,7 +954,7 @@ class RobotPlanningContext:
             for arm, value in raw_names.items()
         }
         if any(len(value) not in SUPPORTED_JOINT_DIMENSIONS for value in names.values()):
-            raise ValueError("joint_names must contain 6 or 7 entries per arm")
+            raise ValueError("joint_names must contain a supported number of entries per arm")
         raw_transforms = _mapping(self.base_transforms, "base_transforms", allow_empty=False)
         raw_links = _mapping(self.end_effector_links, "end_effector_links", allow_empty=False)
         if set(raw_transforms) != set(names) or set(raw_links) != set(names):
