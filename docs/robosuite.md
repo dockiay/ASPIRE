@@ -1,5 +1,8 @@
 # Robosuite
 
+The separate [`so101` simulation backend](so101.md) reuses this environment to
+run the official five-axis SO-101 model and a recorded joint-control task.
+
 ## Setup
 
 ```bash

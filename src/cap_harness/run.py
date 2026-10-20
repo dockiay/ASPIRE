@@ -83,8 +83,8 @@ def run_program(
     allow_motion: bool = False,
 ) -> RunOutcome:
     """Run an episode, using its task horizon when max_steps is not supplied."""
-    if benchmark not in {"behavior", "libero-pro", "robosuite", "yam_real"}:
-        raise ValueError("benchmark must be behavior, libero-pro, robosuite, or yam_real")
+    if benchmark not in {"behavior", "libero-pro", "robosuite", "so101", "yam_real"}:
+        raise ValueError("benchmark must be behavior, libero-pro, robosuite, so101, or yam_real")
     if init_mode not in {"saved", "seeded"}:
         raise ValueError("init_mode must be 'saved' or 'seeded'")
     if init_mode != "saved" and benchmark != "libero-pro":
@@ -113,6 +113,15 @@ def run_program(
         metadata = registry.resolve(suite, task_id)
         adapter_type = BehaviorAdapter
         extension_allowlist = BEHAVIOR_PUBLIC_TOOL_NAMES
+    elif benchmark == "so101":
+        from .registry import SO101_PUBLIC_TOOL_NAMES
+        from .so101.adapter import SO101Adapter
+        from .so101.registry import SO101TaskRegistry
+
+        registry = SO101TaskRegistry()
+        metadata = registry.resolve(suite, task_id)
+        adapter_type = SO101Adapter
+        extension_allowlist = SO101_PUBLIC_TOOL_NAMES
     elif benchmark == "yam_real":
         from .registry import YAM_REAL_PUBLIC_TOOL_NAMES
         from .yam_real.adapter import YamRealAdapter
@@ -143,6 +152,14 @@ def run_program(
             "ik": ("curobo",),
             "trajectory_planning": ("interpolation", "curobo"),
             "pose_planning": ("curobo-integrated",),
+        }
+    elif benchmark == "so101":
+        provider_capabilities = {
+            "segmentation": None,
+            "grasping": (),
+            "ik": (),
+            "trajectory_planning": ("interpolation",),
+            "pose_planning": (),
         }
     else:
         provider_capabilities = {
@@ -292,13 +309,16 @@ def run_program(
         # Service URLs are overridable so a run can point at a private, freshly
         # started service (CAP_HARNESS_SAM3_URL, CAP_HARNESS_CUROBO_URL) instead
         # of the shared stack.
-        segmentation = TracedProvider(
-            Sam3Provider(base_url=os.environ.get("CAP_HARNESS_SAM3_URL", DEFAULT_SAM3_URL)),
-            recorder,
-            "sam3",
-        )
-        contact_graspnet = TracedProvider(ContactGraspNetProvider(), recorder, "contact_graspnet")
-        if benchmark == "behavior":
+        if benchmark != "so101":
+            segmentation = TracedProvider(
+                Sam3Provider(base_url=os.environ.get("CAP_HARNESS_SAM3_URL", DEFAULT_SAM3_URL)),
+                recorder,
+                "sam3",
+            )
+            contact_graspnet = TracedProvider(ContactGraspNetProvider(), recorder, "contact_graspnet")
+        if benchmark == "so101":
+            api = CapApi(adapter, recorder=recorder)
+        elif benchmark == "behavior":
             from .contracts import MotionStrategy
 
             planner = TracedProvider(adapter.planner(), recorder, "curobo")  # type: ignore[attr-defined]

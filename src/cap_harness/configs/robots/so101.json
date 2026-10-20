@@ -1,0 +1,11 @@
+{
+  "repository": "https://github.com/TheRobotStudio/SO-ARM100.git",
+  "commit": "a758567c3978dfeefe282ede0500085a48fe8f78",
+  "checkout": "third_party/so_arm100",
+  "sparse_path": "Simulation/SO101",
+  "model": "Simulation/SO101/so101_new_calib.xml",
+  "urdf": "Simulation/SO101/so101_new_calib.urdf",
+  "license": "Apache-2.0",
+  "arm_joints": ["shoulder_pan", "shoulder_lift", "elbow_flex", "wrist_flex", "wrist_roll"],
+  "gripper_joint": "gripper"
+}

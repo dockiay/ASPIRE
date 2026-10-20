@@ -146,6 +146,7 @@ schema.
 | --- | --- | --- | --- | --- |
 | LIBERO-Pro | `primary` | `robot_base` | `agentview`, `robot0_eye_in_hand` | Seven-joint Panda plus normalized gripper at 20 Hz. |
 | Robosuite | `primary`, optionally `secondary` | `robot0_base` | Agent view and one eye-in-hand camera per robot | Single- or bimanual Panda joint control at 20 Hz. |
+| SO-101 simulation | `primary` | `so101_base` | `agentview`, `sideview` | Five arm joints plus a separately normalized angular gripper; absolute-position targets at 20 Hz by default. See [setup and scope](so101.md). |
 | BEHAVIOR-1K | `primary` (left), `secondary` (right) | `odom`, fixed where the base stood at instance load | `head`, `left_wrist`, `right_wrist` | R1 Pro seven-joint arms plus normalized grippers at 30 Hz; the holonomic base and the torso move only through the `behavior.*` extensions, and every pose stays valid after the base drives. |
 
 `get_task_context().language` is the authoritative per-episode instruction.

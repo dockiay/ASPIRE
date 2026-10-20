@@ -648,6 +648,7 @@ class RobosuiteAdapter:
                         "joint_position",
                         self._joint_targets.get(arm, state.joint_positions[arm]),
                         normalized[arm],
+                        embodiment=self.embodiment,
                     )
                     for arm in self.arms
                 }
