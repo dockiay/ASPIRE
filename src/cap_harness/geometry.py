@@ -261,8 +261,14 @@ def mask_to_point_cloud(
     segmentation: Segmentation,
     *,
     target_frame: str | None = None,
+    erosion_pixels: int = 0,
+    depth_range_m: Sequence[float] | None = None,
 ) -> PointCloud:
-    """Back-project a mask and optionally transform it to the camera parent frame."""
+    """Project visible pixels; optional, explicit filters exclude boundaries/background.
+
+    Filtering does not infer hidden surfaces or replace the provider's raw mask.
+    Depth limits are camera-axis distances in metres, before any frame transform.
+    """
     if not isinstance(observation, CameraObservation):
         # Preserve the invalid-data ValueError contract.
         raise ValueError("observation must be a CameraObservation")
@@ -277,14 +283,32 @@ def mask_to_point_cloud(
     if segmentation.mask.shape != observation.depth_m.shape:
         raise ValueError("segmentation mask shape does not match camera depth")
 
-    rows, columns = np.nonzero(segmentation.mask)
+    if type(erosion_pixels) is not int or not 0 <= erosion_pixels <= 8:
+        raise ValueError("erosion_pixels must be an integer between zero and eight")
+    selected = segmentation.mask
+    if erosion_pixels:
+        size = 2 * erosion_pixels + 1
+        windows = np.lib.stride_tricks.sliding_window_view(
+            np.pad(selected, erosion_pixels, constant_values=False), (size, size)
+        )
+        selected = windows.all(axis=(-2, -1))
+    limits = None
+    if depth_range_m is not None:
+        limits = _finite_array(depth_range_m, shape=(2,), name="depth_range_m")
+        if not 0 <= limits[0] < limits[1]:
+            raise ValueError("depth_range_m must be increasing non-negative metres")
+    rows, columns = np.nonzero(selected)
     depths = observation.depth_m[rows, columns]
     valid = np.isfinite(depths) & (depths > 0.0)
+    if limits is not None:
+        valid &= (depths >= limits[0]) & (depths <= limits[1])
     rows = rows[valid]
     columns = columns[valid]
     depths = depths[valid]
     if depths.size == 0:
-        raise ValueError("segmentation contains no pixels with valid positive depth")
+        raise ValueError(
+            "segmentation contains no pixels with valid positive depth after projection filters"
+        )
 
     intrinsics = observation.intrinsics
     x = (columns - intrinsics[0, 2]) * depths / intrinsics[0, 0]

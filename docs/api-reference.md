@@ -31,10 +31,10 @@ advance environment control time.
 | `shared_atomic` | `get_robot_state()` | `RobotState` | No | Read joint, gripper, end-effector, frame, and timestamp state. |
 | `shared_atomic` | `segment_text(camera_name, text)` | `SegmentationSet` | No | Segment objects in one current camera image using a text prompt. |
 | `shared_atomic` | `segment_points(camera_name, points_px)` | `SegmentationSet` | No | Segment from an `N x 2` list of image-space point prompts. |
-| `shared_atomic` | `mask_to_point_cloud(mask, camera_name, target_frame="robot_base")` | `PointCloud` | No | Project a public depth mask into a named frame. |
+| `shared_atomic` | `mask_to_point_cloud(mask, camera_name, target_frame=None, *, erosion_pixels=0, depth_range_m=None)` | `PointCloud` | No | Project a public depth mask; omitted frame selects the observed robot base. Optional explicit filters preserve the supplied mask. |
 | `shared_atomic` | `crop_point_cloud(point_cloud, lower_xyz, upper_xyz)` | `PointCloud` | No | Keep points inside inclusive framed XYZ bounds, preserving aligned colors. |
 | `shared_atomic` | `estimate_geometry(point_cloud)` | `ObjectGeometry` | No | Estimate a framed center, orientation, and extents from a point cloud. |
-| `shared_atomic` | `generate_grasps(camera_name, mask, backend="contact-graspnet", max_candidates=5)` | `GraspSet` | No | Generate up to `max_candidates` framed candidates with the selected configured backend. |
+| `shared_atomic` | `generate_grasps(camera_name, mask, backend=None, max_candidates=5)` | `GraspSet` | No | Use the configured default grasp backend (`contact-graspnet` unless overridden); explicit providers never fall back silently. |
 | `shared_atomic` | `solve_ik(target_pose, seed_joints=None, *, arm="primary", backend=None)` | `IKResult` | No | Solve one arm pose with the named IK backend; `None` means the benchmark's default (`pyroki`, or `curobo` on `behavior`). |
 | `shared_atomic` | `plan_motion(goal, start_joints=None, *, arm="primary", strategy=None)` | `PlanResult` | No | Plan to a pose or joint goal using a `MotionStrategy`. |
 | `shared_atomic` | `plan_synchronized_motion(targets, strategy=None)` | `SynchronizedPlanResult` | No | Plan same-tick motion for every arm in the current embodiment. |
@@ -132,6 +132,8 @@ schema.
 | `extension` | `libero.get_controller_metadata()` | Action dimension/bounds, arms, cameras, frequency/period, controller, gripper and joint-command semantics, action modes |
 | `extension` | `robosuite.get_task_metadata()` | `arms`, `camera_names`, `environment`, `family`, `language`, `robots`, `suite_name`, task identity |
 | `extension` | `robosuite.get_controller_metadata()` | Action dimension/bounds, arms, base frame, cameras, frequency/period, controller, controllable grippers, action modes |
+| `extension` | `so101.get_finger_contacts()` | Current virtual distal-finger forces and tool-local positions; simulation only, no object identity or task verdict. |
+| `extension` | `so101.command_gripper(...)` / `so101.command_joints(...)` | Bounded position commands with physics-substep force/contact guards; inspect `stop_reason` and `completed`. See [SO-101 control semantics](so101.md#supervised-simulation-control). |
 | `extension` | `behavior.get_task_metadata()` | `activity_name`, `arms`, `camera_names`, `family`, `instance_id`, `language`, `scene_model`, `suite_name`, `support_prompt`, `target_prompt`, task identity |
 | `extension` | `behavior.get_controller_metadata()` | Action dimension/bounds, arms, base frame `odom`, `base_pose`, cameras, frequency/period, controller, controllable grippers, `torso_positions`, `torso_lower_bounds`, `torso_upper_bounds` |
 | `extension` | `behavior.get_base_pose()` | `(x, y, yaw)` of the base footprint in `odom` |

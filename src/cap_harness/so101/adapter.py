@@ -9,6 +9,7 @@ from typing import Any
 import numpy as np
 
 from cap_harness.contracts import (
+    ArmCommand,
     ExecutionResult,
     RobotAction,
     RobotPlanningContext,
@@ -104,25 +105,23 @@ class SO101Adapter(RobosuiteAdapter):
             raise ValueError("SO-101 only has the primary arm")
         return target_pose, state
 
-    def _cancel_command_targets(self) -> None:
+    def _cancel_command_targets(self, *, keep_issued_gripper=False) -> None:
+        """Latch measured arm state in both the servos and shared-command caches."""
         env = self._require_env()
+        jaw = float(env.sim.data.ctrl[env.actuator_ids[5]])
         measured = env.sim.data.qpos[env.qpos_indexes].copy()
         env.sim.data.ctrl[env.actuator_ids] = measured
         self._joint_targets["primary"] = measured[:5].copy()
         self._gripper_targets["primary"] = env.opening()
+        if keep_issued_gripper:
+            env.sim.data.ctrl[env.actuator_ids[5]] = jaw
+            self._gripper_targets["primary"] = self.issued_gripper_position()
 
-    def native_step(self, action: RobotAction) -> StepResult:
+    def native_step(self, action) -> StepResult:
         env = self._require_env()
-        if self._last_terminated or self._last_truncated or env.elapsed >= env.horizon:
-            self._cancel_command_targets()
-            terminated = self._last_terminated
-            truncated = self._last_truncated or not terminated
-            return StepResult(
-                ok=False,
-                terminated=terminated,
-                truncated=truncated,
-                error=self._terminal_error(terminated, truncated),
-            )
+        terminal = self._terminal_step_result()
+        if terminal is not None:
+            return terminal
         if action.embodiment != self.embodiment:
             raise ValueError(
                 f"action embodiment {action.embodiment!r} does not match {self.embodiment!r}"
@@ -132,8 +131,22 @@ class SO101Adapter(RobosuiteAdapter):
                 ok=False,
                 error=ApiError(ErrorCode.NOT_FOUND, "SO-101 has only the primary arm"),
             )
-        # The parent stores accepted goals before encoding. Reject the complete
-        # request first, so invalid targets cannot change its pending commands.
+        target = action.arms["primary"].target
+        low, high = self.action_bounds
+        if (
+            target.shape != (5,)
+            or not np.isfinite(target).all()
+            or np.any(target < low[:5])
+            or np.any(target > high[:5])
+        ):
+            return StepResult(
+                ok=False,
+                error=ApiError(
+                    ErrorCode.INVALID_REQUEST, "SO-101 joint target exceeds actuator limits"
+                ),
+            )
+        # Validate the complete encoded request before the base adapter commits
+        # its accepted goals. Rejected input must never change pending commands.
         try:
             self._codec.encode(
                 action,
@@ -143,8 +156,28 @@ class SO101Adapter(RobosuiteAdapter):
             )
         except (TypeError, ValueError) as exc:
             return StepResult(ok=False, error=ApiError(ErrorCode.INVALID_REQUEST, str(exc)))
-        result = super().native_step(action)
-        if not result.ok or result.terminated or result.truncated:
+        if env.action_guard is None:
+            env.action_stop = None
+        env.active_command = {
+            "kind": getattr(self, "_active_kind", "joint_position"),
+            "step_index": self._elapsed_steps,
+            "arms": {
+                name: {"joints_rad": cmd.target.tolist(), "opening": cmd.gripper_position}
+                for name, cmd in action.arms.items()
+            },
+        }
+        try:
+            result = super().native_step(action)
+        except Exception:
+            self._cancel_command_targets()
+            raise
+        if (
+            not result.ok
+            or result.terminated
+            or result.truncated
+            or env.action_stop is not None
+            or env.safety_stop is not None
+        ):
             self._cancel_command_targets()
         return result
 
@@ -159,6 +192,8 @@ class SO101Adapter(RobosuiteAdapter):
         return result
 
     def get_controller_metadata(self):
+        from cap_harness.so101.joint_control import action_limits
+
         metadata = dict(super().get_controller_metadata())
         env = self._require_env()
         low, high = self.action_bounds
@@ -173,6 +208,13 @@ class SO101Adapter(RobosuiteAdapter):
                 "calibration": "simulation model only; not a calibrated LeRobot aperture",
             },
             native_setpoint_rates_rad_s={"arm": 1.0, "jaw": 3.0},
+            action_limits=action_limits(),
+            supervised_control={
+                "sensors": "virtual simulation fingertip contacts; not stock SO-101 hardware",
+                "guard_period_s": float(env.model.opt.timestep),
+                "force_scope": "requested stop threshold; inertia can overshoot it",
+                "completion": "inspect completed and stop_reason; ok may acknowledge a guard stop",
+            },
             camera_calibration={
                 "pixel_centers": "integer coordinates; cx=(width-1)/2, cy=(height-1)/2",
                 "offsamples": int(env.model.vis.quality.offsamples),
@@ -183,3 +225,220 @@ class SO101Adapter(RobosuiteAdapter):
             collision_avoidance=False,
         )
         return MappingProxyType(metadata)
+
+
+    def get_finger_contacts(self):
+        """Read virtual fingertip contact forces; these sensors exist only in simulation."""
+        from cap_harness.so101.sensing import read_finger_contacts
+
+        return MappingProxyType(read_finger_contacts(self._require_env()))
+
+
+    def command_joints(
+        self,
+        target,
+        *,
+        duration_s=2.5,
+        speed_rad_s=0.2,
+        force_limit_n=8.0,
+        stop_on_contact_loss=False,
+        tolerance_rad=0.003,
+        gripper_position=None,
+        gripper_speed=0.25,
+        minimum_duration_s=0.0,
+        arm="primary",
+    ):
+        from cap_harness.so101.joint_control import command_joints
+
+        return command_joints(
+            self,
+            target,
+            duration_s=duration_s,
+            speed_rad_s=speed_rad_s,
+            force_limit_n=force_limit_n,
+            stop_on_contact_loss=stop_on_contact_loss,
+            tolerance_rad=tolerance_rad,
+            gripper_position=gripper_position,
+            gripper_speed=gripper_speed,
+            minimum_duration_s=minimum_duration_s,
+            arm=arm,
+        )
+
+
+    def command_gripper(
+        self,
+        position,
+        *,
+        duration_s=2.5,
+        speed=0.5,
+        force_limit_n=8.0,
+        stop_on_contact=False,
+        arm="primary",
+    ):
+        """Rate-bounded angular command with substep virtual-force supervision."""
+
+        def invalid(message):
+            return ExecutionResult(
+                ok=False,
+                steps_executed=0,
+                error=ApiError(ErrorCode.INVALID_REQUEST, message),
+            )
+
+        try:
+            inputs = [position, duration_s, speed, force_limit_n]
+            if any(isinstance(value, (bool, np.bool_)) or np.ndim(value) != 0 for value in inputs):
+                return invalid("Gripper position and limits must be finite numeric scalars")
+            position, duration_s, speed, force_limit_n = map(float, inputs)
+            if (
+                arm != "primary"
+                or not np.isfinite([position, duration_s, speed, force_limit_n]).all()
+                or not 0 <= position <= 1
+                or not 0 < duration_s <= 10
+                or not 0 < speed <= 1
+                or not 0.1 <= force_limit_n <= 12
+                or not isinstance(stop_on_contact, bool)
+            ):
+                return invalid(
+                    "Expected position [0,1], duration_s (0,10], speed (0,1], "
+                    "force_limit_n [0.1,12], boolean stop_on_contact; primary arm"
+                )
+        except (ValueError, TypeError, OverflowError):
+            return invalid("Gripper position and limits must be finite numeric scalars")
+        env = self._require_env()
+        if env.action_guard is not None:
+            return invalid("Another action guard is active")
+        terminal = self._terminal_step_result()
+        if terminal is not None:
+            return ExecutionResult(
+                ok=False,
+                steps_executed=0,
+                terminated=terminal.terminated,
+                truncated=terminal.truncated,
+                error=terminal.error,
+            )
+        peaks = {"fixed": 0.0, "moving": 0.0}
+        env.action_stop = None
+
+        def guard():
+            sample = self.get_finger_contacts()
+            forces = {side: sample[side]["normal_force_n"] for side in peaks}
+            for side, force in forces.items():
+                peaks[side] = max(peaks[side], force)
+            if any(force >= force_limit_n for force in forces.values()):
+                return "force_limit"
+            if stop_on_contact and any(force >= 0.1 for force in forces.values()):
+                return "contact"
+            return None
+
+        result = None
+        reason = guard()
+        steps = 0
+        env.action_guard = guard
+        self._active_kind = "gripper"
+        try:
+            joints = self.get_robot_state().joint_positions[arm]
+            command = self.get_robot_state().gripper_positions[arm]
+            for _ in range(
+                0 if reason is not None else int(np.ceil(duration_s / self.control_period_s))
+            ):
+                reason = "duration_limit"
+                command += float(
+                    np.clip(
+                        position - command,
+                        -speed * self.control_period_s,
+                        speed * self.control_period_s,
+                    )
+                )
+                result = self.step(
+                    RobotAction(
+                        {arm: ArmCommand("joint_position", joints, command, embodiment="so101")}
+                    )
+                )
+                steps += 1
+                if not result.ok or result.terminated or result.truncated:
+                    reason = env.safety_stop or "episode_terminal"
+                    break
+                if env.action_stop:
+                    reason = env.action_stop
+                    break
+                if abs(env.opening() - position) <= 0.025 and abs(command - position) <= 0.01:
+                    reason = "target_reached"
+                    break
+        finally:
+            env.action_guard = None
+            self._active_kind = "joint_position"
+            measured = self.get_robot_state().gripper_positions[arm]
+            self._cancel_command_targets()
+        ok = (
+            result is None or (result.ok and not result.terminated and not result.truncated)
+        ) and reason in ("target_reached", "contact", "force_limit")
+        return ExecutionResult(
+            ok=ok,
+            steps_executed=steps,
+            final_observation=result.observation if result else None,
+            terminated=result.terminated if result else False,
+            truncated=result.truncated if result else False,
+            error=None
+            if ok
+            else (
+                (result.error if result else None)
+                or ApiError(ErrorCode.TIMEOUT, "Gripper stopped: " + reason)
+            ),
+            diagnostics={
+                "stop_reason": reason,
+                "completed": reason == "target_reached" and ok,
+                "peak_finger_forces_n": peaks,
+                "measured_opening": measured,
+                "target_reached": abs(measured - position) <= 0.025,
+                "sensor_source": "virtual simulation contacts",
+            },
+        )
+
+
+    def _terminal_step_result(self):
+        env = self._require_env()
+        if getattr(env, "safety_stop", None) is not None:
+            self._cancel_command_targets()
+            return StepResult(
+                ok=False,
+                truncated=True,
+                error=ApiError(ErrorCode.ADAPTER_FAILED, "Episode stopped: " + env.safety_stop),
+            )
+        if (
+            self._last_terminated
+            or self._last_truncated
+            or getattr(env, "elapsed", 0) >= getattr(env, "horizon", self.horizon)
+        ):
+            self._cancel_command_targets()
+            terminated = self._last_terminated
+            truncated = self._last_truncated or not terminated
+            return StepResult(
+                ok=False,
+                terminated=terminated,
+                truncated=truncated,
+                error=self._terminal_error(terminated, truncated),
+            )
+        return None
+
+
+    def issued_gripper_position(self, arm="primary") -> float:
+        """Instantaneous servo setpoint, distinct from the accepted pending goal."""
+        if arm != "primary":
+            raise ValueError("SO-101 only has the primary arm")
+        env = self._require_env()
+        low, high = self.action_bounds
+        angle = env.sim.data.ctrl[env.actuator_ids[5]]
+        return float(np.clip((angle - low[5]) / (high[5] - low[5]), 0, 1))
+
+
+    def commanded_gripper_position(self, arm="primary") -> float:
+        """Accepted jaw goal, which can still be pending behind the rate limiter.
+
+        Shared arm commands preserve this goal. A supervised bounded segment
+        replaces it with its final issued target; cancellation replaces it with
+        the measured opening.
+        """
+        if arm != "primary":
+            raise ValueError("SO-101 only has the primary arm")
+        self._require_env()
+        return self._gripper_targets[arm]
