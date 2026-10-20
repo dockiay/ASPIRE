@@ -157,9 +157,9 @@ def run_program(
         provider_capabilities = {
             "segmentation": None,
             "grasping": (),
-            "ik": (),
-            "trajectory_planning": ("interpolation",),
-            "pose_planning": (),
+            "ik": ("so101",),
+            "trajectory_planning": ("interpolation", "so101"),
+            "pose_planning": ("composed",),
         }
     else:
         provider_capabilities = {
@@ -317,7 +317,9 @@ def run_program(
             )
             contact_graspnet = TracedProvider(ContactGraspNetProvider(), recorder, "contact_graspnet")
         if benchmark == "so101":
-            api = CapApi(adapter, recorder=recorder)
+            from .so101.integration import make_api
+
+            api = make_api(adapter, recorder=recorder)
         elif benchmark == "behavior":
             from .contracts import MotionStrategy
 

@@ -1004,10 +1004,10 @@ class MotionStrategy:
         ik_solver = _non_empty_string(self.ik_solver, "ik_solver")
         trajectory_planner = _non_empty_string(self.trajectory_planner, "trajectory_planner")
         pose_planner = _non_empty_string(self.pose_planner, "pose_planner")
-        if ik_solver not in {"pyroki", "curobo", "mink"}:
-            raise ValueError("ik_solver must be 'pyroki', 'curobo', or 'mink'")
-        if trajectory_planner not in {"interpolation", "curobo"}:
-            raise ValueError("trajectory_planner must be 'interpolation' or 'curobo'")
+        if ik_solver not in {"pyroki", "curobo", "mink", "so101"}:
+            raise ValueError("ik_solver must be 'pyroki', 'curobo', 'mink', or 'so101'")
+        if trajectory_planner not in {"interpolation", "curobo", "so101"}:
+            raise ValueError("trajectory_planner must be 'interpolation', 'curobo', or 'so101'")
         if pose_planner not in {"composed", "curobo-integrated"}:
             raise ValueError("pose_planner must be 'composed' or 'curobo-integrated'")
         object.__setattr__(self, "ik_solver", ik_solver)

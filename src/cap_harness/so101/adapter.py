@@ -27,7 +27,6 @@ class SO101Adapter(RobosuiteAdapter):
     BASE_FRAME = "so101_base"
     gripper_holds_intermediate = True
 
-
     def __init__(self, **kwargs: Any) -> None:
         kwargs.setdefault("registry", SO101TaskRegistry())
         super().__init__(**kwargs)
@@ -221,18 +220,23 @@ class SO101Adapter(RobosuiteAdapter):
                 "depth_clip_near_m": float(env.model.vis.map.znear * env.model.stat.extent),
                 "depth_clip_far_m": float(env.model.vis.map.zfar * env.model.stat.extent),
             },
-            cartesian_planning_supported=False,
-            collision_avoidance=False,
+            cartesian_planning_supported=True,
+            collision_avoidance=True,
+            collision_check_scope="sampled robot meshes and public depth points via so101 planner",
+            planning_providers={
+                "standard_runner": "local so101 IK and bounded RRT-Connect",
+                "custom_clients": "use make_api or configure providers explicitly",
+                "scope": "observed geometry only; inspect plan diagnostics for limits",
+            },
+            tcp_approach_axis="+X in so101_gripperframe",
         )
         return MappingProxyType(metadata)
-
 
     def get_finger_contacts(self):
         """Read virtual fingertip contact forces; these sensors exist only in simulation."""
         from cap_harness.so101.sensing import read_finger_contacts
 
         return MappingProxyType(read_finger_contacts(self._require_env()))
-
 
     def command_joints(
         self,
@@ -263,7 +267,6 @@ class SO101Adapter(RobosuiteAdapter):
             minimum_duration_s=minimum_duration_s,
             arm=arm,
         )
-
 
     def command_gripper(
         self,
@@ -394,7 +397,6 @@ class SO101Adapter(RobosuiteAdapter):
             },
         )
 
-
     def _terminal_step_result(self):
         env = self._require_env()
         if getattr(env, "safety_stop", None) is not None:
@@ -420,7 +422,6 @@ class SO101Adapter(RobosuiteAdapter):
             )
         return None
 
-
     def issued_gripper_position(self, arm="primary") -> float:
         """Instantaneous servo setpoint, distinct from the accepted pending goal."""
         if arm != "primary":
@@ -429,7 +430,6 @@ class SO101Adapter(RobosuiteAdapter):
         low, high = self.action_bounds
         angle = env.sim.data.ctrl[env.actuator_ids[5]]
         return float(np.clip((angle - low[5]) / (high[5] - low[5]), 0, 1))
-
 
     def commanded_gripper_position(self, arm="primary") -> float:
         """Accepted jaw goal, which can still be pending behind the rate limiter.
@@ -442,3 +442,112 @@ class SO101Adapter(RobosuiteAdapter):
             raise ValueError("SO-101 only has the primary arm")
         self._require_env()
         return self._gripper_targets[arm]
+
+    def planning_workspace(self) -> tuple[np.ndarray, np.ndarray]:
+        """Conservative robot-model reach box, expressed in ``so101_base``.
+
+        Every robot geom lies within the sum of its chain's body offsets,
+        rotation-anchor displacements, and geom bounding sphere. Joint angles
+        cannot increase that triangle-inequality bound. Include all robot
+        geoms and the moving jaw, not only the TCP or the current pose.
+        This removes unreachable depth background; it is not a task region.
+        """
+        if not hasattr(self, "_planning_workspace_bounds"):
+            from cap_harness.so101.effector import EffectorGeometry
+
+            if not hasattr(self, "_effector_geometry"):
+                self._effector_geometry = EffectorGeometry()
+            model = self._effector_geometry.robot.model  # robot-only model
+            base = model.body(self.BASE_FRAME).id
+            chain_radius = {base: 0.0}
+            for body in range(base + 1, model.nbody):
+                parent = int(model.body_parentid[body])
+                if parent not in chain_radius:
+                    continue
+                extent = float(np.linalg.norm(model.body_pos[body]))
+                first = int(model.body_jntadr[body])
+                for joint in range(first, first + int(model.body_jntnum[body])):
+                    kind = int(model.jnt_type[joint])
+                    if kind in (1, 3):  # MuJoCo ball/hinge: rotation about local anchor.
+                        extent += 2 * float(np.linalg.norm(model.jnt_pos[joint]))
+                    elif kind == 2 and model.jnt_limited[joint]:  # bounded slide
+                        reference = model.qpos0[model.jnt_qposadr[joint]]
+                        extent += float(np.max(np.abs(model.jnt_range[joint] - reference)))
+                    else:
+                        raise ValueError("Cannot bound a robot body with unbounded translation")
+                chain_radius[body] = chain_radius[parent] + extent
+            radius = 0.0
+            for geom in range(model.ngeom):
+                body = int(model.geom_bodyid[geom])
+                if body not in chain_radius:
+                    continue
+                if int(model.geom_type[geom]) in (0, 1):  # plane or height field
+                    raise ValueError("Cannot bound an infinite or terrain geom attached to robot")
+                radius = max(
+                    radius,
+                    chain_radius[body]
+                    + float(np.linalg.norm(model.geom_pos[geom]))
+                    + float(model.geom_rbound[geom]),
+                )
+            if not np.isfinite(radius) or radius <= 0:
+                raise ValueError("Robot model has no finite positive geometry reach bound")
+            # Outward rounding protects the analytical boundary from float rounding.
+            upper = np.full(3, np.nextafter(radius, np.inf))
+            self._planning_workspace_bounds = (-upper, upper)
+        return tuple(bound.copy() for bound in self._planning_workspace_bounds)
+
+    def get_gripper_geometry(self, opening=None):
+        from cap_harness.so101.effector import EffectorGeometry
+
+        if not hasattr(self, "_effector_geometry"):
+            self._effector_geometry = EffectorGeometry()
+        state = self.get_robot_state()
+        return self._effector_geometry.describe(
+            state.joint_positions["primary"],
+            state.gripper_positions["primary"] if opening is None else opening,
+        )
+
+    def solve_point_axis_ik(
+        self,
+        point_in_tool_m,
+        target_point_m,
+        axis_in_tool,
+        target_axis,
+        *,
+        frame="so101_base",
+        arm="primary",
+        seed_joints=None,
+    ):
+        """Robot-only IK on caller-supplied constraints; no simulation motion."""
+        from cap_harness.so101.providers import SO101IKProvider
+
+        if not hasattr(self, "_point_axis_ik"):
+            self._point_axis_ik = SO101IKProvider()
+        return self._point_axis_ik.solve_point_axis_ik(
+            point_in_tool_m,
+            target_point_m,
+            axis_in_tool,
+            target_axis,
+            self.get_robot_state(),
+            frame=frame,
+            arm=arm,
+            seed_joints=seed_joints,
+        )
+
+    def check_joint_path(
+        self,
+        waypoints,
+        obstacle_points_m,
+        finger_contact_mask=None,
+        margin_m=0.003,
+        gripper_positions=None,
+    ):
+        self.get_gripper_geometry()
+        return self._effector_geometry.check_path(
+            waypoints,
+            obstacle_points_m,
+            opening=self.get_robot_state().gripper_positions["primary"],
+            openings=gripper_positions,
+            finger_contact_mask=finger_contact_mask,
+            margin_m=margin_m,
+        )

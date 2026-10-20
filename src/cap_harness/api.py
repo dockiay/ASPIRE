@@ -1604,6 +1604,9 @@ class CapApi:
             ("get_task_metadata", "metadata"),
             ("get_controller_metadata", "metadata"),
             ("get_finger_contacts", "sensing"),
+            ("get_gripper_geometry", "geometry"),
+            ("check_joint_path", "planning"),
+            ("solve_point_axis_ik", "planning"),
             ("command_gripper", "control"),
             ("command_joints", "control"),
             ("get_base_pose", "metadata"),
@@ -1720,8 +1723,7 @@ class CapApi:
         why the bound is derived from arm reach rather than from the table.
 
         Embodiments opt in by exposing ``planning_workspace()``. Adapters without
-        it -- every simulator embodiment today -- get the full cloud exactly as
-        before.
+        it get the full cloud exactly as before.
         """
         workspace = getattr(self._adapter, "planning_workspace", None)
         if not callable(workspace):
