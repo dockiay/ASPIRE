@@ -6,8 +6,11 @@ import argparse
 import asyncio
 import base64
 import functools
+import hashlib
 import io
 import logging
+from pathlib import Path
+import subprocess
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
@@ -33,6 +36,13 @@ _PROCESSOR: Any | None = None
 _DEVICE = "cuda"
 _GPU_SEMAPHORE = asyncio.Semaphore(1)
 _MAX_SEGMENTATIONS = 5
+_METADATA: dict[str, Any] = {"provider": "sam3", "ready": False}
+
+
+@app.get("/metadata")
+async def metadata() -> dict[str, Any]:
+    """Stable model provenance for reproducible simulation campaigns."""
+    return _METADATA
 
 
 class SegmentRequest(BaseModel):
@@ -117,6 +127,7 @@ def _encode_raw(array: np.ndarray) -> str:
     return base64.b64encode(np.ascontiguousarray(array).tobytes()).decode("ascii")
 
 
+@torch.inference_mode()
 def _segment_text(image: Image.Image, prompt: str) -> SegmentResponse:
     device_type = "cuda" if "cuda" in _DEVICE else "cpu"
     with torch.autocast(device_type, dtype=torch.bfloat16):
@@ -148,6 +159,7 @@ def _segment_text(image: Image.Image, prompt: str) -> SegmentResponse:
     return SegmentResponse(results=results[:_MAX_SEGMENTATIONS])
 
 
+@torch.inference_mode()
 def _segment_point(image: Image.Image, point: tuple[float, float]) -> PointPromptResponse:
     device_type = "cuda" if "cuda" in _DEVICE else "cpu"
     with torch.autocast(device_type, dtype=torch.bfloat16):
@@ -213,9 +225,18 @@ def main() -> None:
     parser.add_argument("--device", default="cuda")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8114)
+    parser.add_argument(
+        "--checkpoint", type=Path, help="Local SAM3 checkpoint; otherwise download facebook/sam3"
+    )
+    parser.add_argument(
+        "--revision", default="main", help="Hugging Face revision to resolve before loading"
+    )
+    parser.add_argument("--confidence-threshold", type=float, default=0.0)
     args = parser.parse_args()
+    if not 0 <= args.confidence_threshold <= 1:
+        parser.error("confidence-threshold must be between zero and one")
 
-    global _DEVICE, _MODEL, _PROCESSOR
+    global _DEVICE, _MODEL, _PROCESSOR, _METADATA
     _DEVICE = args.device
     if torch.cuda.is_available():
         torch.backends.cuda.matmul.allow_tf32 = True
@@ -223,8 +244,56 @@ def main() -> None:
         if "cuda" in args.device:
             torch.cuda.set_device(int(args.device.split(":")[-1]) if ":" in args.device else 0)
     LOGGER.info("Loading SAM3 model on %s", args.device)
-    _MODEL = build_sam3_image_model(enable_inst_interactivity=True).to(args.device)
-    _PROCESSOR = Sam3Processor(_MODEL, device=args.device, confidence_threshold=0.0)
+    checkpoint = args.checkpoint
+    if checkpoint is None:
+        from huggingface_hub import hf_hub_download
+
+        checkpoint = Path(hf_hub_download("facebook/sam3", "sam3.pt", revision=args.revision))
+    checkpoint = checkpoint.resolve()
+    digest = hashlib.sha256()
+    with checkpoint.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    checkpoint_sha = digest.hexdigest()
+    import sam3
+
+    source = Path(sam3.__file__).resolve().parent.parent
+    commit = None
+    try:
+        git_root = subprocess.check_output(
+            ["git", "-C", str(source), "rev-parse", "--show-toplevel"], text=True
+        ).strip()
+        if Path(git_root).resolve() == source:
+            commit = subprocess.check_output(
+                ["git", "-C", str(source), "rev-parse", "HEAD"], text=True
+            ).strip()
+    except (OSError, subprocess.CalledProcessError):
+        LOGGER.warning(
+            "SAM3 source commit unavailable; provenance preflight will reject this service"
+        )
+    _MODEL = build_sam3_image_model(
+        enable_inst_interactivity=True,
+        checkpoint_path=str(checkpoint),
+        load_from_HF=False,
+        device=args.device,
+    )
+    _PROCESSOR = Sam3Processor(
+        _MODEL, device=args.device, confidence_threshold=args.confidence_threshold
+    )
+    _METADATA = {
+        "provider": "sam3",
+        "ready": True,
+        "model": "facebook/sam3",
+        "checkpoint_sha256": checkpoint_sha,
+        "sam3_commit": commit,
+        "service_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+        "confidence_threshold": args.confidence_threshold,
+        "device": args.device,
+        "torch": torch.__version__,
+        "max_segmentations": _MAX_SEGMENTATIONS,
+        "input": "RGB only; depth and calibration are composed by ASPIRE",
+        "tracking": "fresh image inference; no persistent cross-view object identity",
+    }
     uvicorn.run(app, host=args.host, port=args.port)
 
 

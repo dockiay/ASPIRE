@@ -17,7 +17,7 @@ from __future__ import annotations
 import asyncio
 import os
 
-_UNBOUNDED_PATHS = frozenset({"/openapi.json", "/docs", "/redoc", "/healthz"})
+_UNBOUNDED_PATHS = frozenset({"/openapi.json", "/docs", "/redoc", "/healthz", "/metadata"})
 
 
 def request_limit(default: int = 1) -> int:

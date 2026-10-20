@@ -34,3 +34,39 @@ def test_every_provider_service_installs_the_runtime_guard() -> None:
     for service in providers.glob("*/service.py"):
         source = service.read_text(encoding="utf-8")
         assert "install_service_runtime(app)" in source, service
+
+
+def test_metadata_remains_available_while_inference_is_busy():
+    import asyncio
+
+    fastapi = pytest.importorskip("fastapi")
+    httpx = pytest.importorskip("httpx")
+
+    async def check():
+        app = fastapi.FastAPI()
+        service_runtime.install_service_runtime(app, limit=1)
+        busy, release = asyncio.Event(), asyncio.Event()
+
+        @app.get("/inference")
+        async def inference():
+            busy.set()
+            await release.wait()
+            return {"ok": True}
+
+        @app.get("/metadata")
+        async def metadata():
+            return {"ready": True}
+
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            pending = asyncio.create_task(client.get("/inference"))
+            try:
+                await asyncio.wait_for(busy.wait(), timeout=2)
+                response = await asyncio.wait_for(client.get("/metadata"), timeout=2)
+                assert response.json() == {"ready": True}
+            finally:
+                release.set()
+                await pending
+
+    asyncio.run(check())
