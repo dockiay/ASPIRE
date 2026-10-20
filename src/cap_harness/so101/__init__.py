@@ -1,1 +1,1 @@
-"""SO-101 contract and action-encoding support."""
+"""SO-101 simulation with five-axis contracts and independent gripper control."""
