@@ -100,6 +100,7 @@ class CapApi:
             Mapping[str, IntegratedPosePlanningProvider] | None
         ) = None,
         default_camera: str = "agentview",
+        default_grasp_backend: str = "contact-graspnet",
         default_motion_strategy: MotionStrategy | None = None,
         home_joint_positions: Mapping[str, np.ndarray] | np.ndarray | None = None,
         recorder: object | None = None,
@@ -115,6 +116,9 @@ class CapApi:
         self._trajectory_planning_providers = dict(trajectory_planning_providers or {})
         self._integrated_pose_planning_providers = dict(integrated_pose_planning_providers or {})
         self.default_camera = default_camera
+        if not isinstance(default_grasp_backend, str) or not default_grasp_backend.strip():
+            raise ValueError("default_grasp_backend must be a nonempty provider name")
+        self.default_grasp_backend = default_grasp_backend
         self.default_motion_strategy = default_motion_strategy
         self._recorder = recorder
         self._home_joint_positions: dict[str, np.ndarray] = {}
@@ -153,6 +157,7 @@ class CapApi:
         """Describe configured backends; this is not a service health check."""
         return {
             "segmentation": self._segmentation_provider is not None,
+            "grasp": tuple(self._grasp_providers),
             "ik": tuple(self._ik_providers),
             "trajectory_planning": tuple(self._trajectory_planning_providers),
             "pose_planning": tuple(self._integrated_pose_planning_providers),
@@ -258,14 +263,21 @@ class CapApi:
         self,
         mask: Segmentation | np.ndarray,
         camera_name: str,
-        target_frame: str = "robot_base",
+        target_frame: str | None = None,
+        *,
+        erosion_pixels: int = 0,
+        depth_range_m: Sequence[float] | None = None,
     ) -> PointCloud:
         observation = self.get_observation(camera_name)
         return self._project_mask(
             mask,
             camera_name=camera_name,
-            target_frame=target_frame,
+            target_frame=observation.robot_state.base_frame
+            if target_frame is None
+            else target_frame,
             observation=observation,
+            erosion_pixels=erosion_pixels,
+            depth_range_m=depth_range_m,
         )
 
     def _project_mask(
@@ -275,6 +287,8 @@ class CapApi:
         camera_name: str,
         target_frame: str,
         observation: Observation,
+        erosion_pixels: int = 0,
+        depth_range_m: Sequence[float] | None = None,
     ) -> PointCloud:
         camera = observation.cameras[camera_name]
         if isinstance(mask, Segmentation):
@@ -291,7 +305,13 @@ class CapApi:
             raise ValueError(
                 f"segmentation camera {segmentation.camera_name!r} does not match {camera_name!r}"
             )
-        return project_mask_to_point_cloud(camera, segmentation, target_frame=target_frame)
+        return project_mask_to_point_cloud(
+            camera,
+            segmentation,
+            target_frame=target_frame,
+            erosion_pixels=erosion_pixels,
+            depth_range_m=depth_range_m,
+        )
 
     def estimate_geometry(self, point_cloud: PointCloud) -> ObjectGeometry:
         return estimate_object_geometry(point_cloud)
@@ -309,9 +329,10 @@ class CapApi:
         camera_name: str,
         mask: Segmentation | np.ndarray,
         *,
-        backend: str = "contact-graspnet",
+        backend: str | None = None,
         max_candidates: int = 5,
     ) -> GraspSet:
+        backend = self.default_grasp_backend if backend is None else backend
         provider = self._grasp_providers.get(backend)
         if provider is None:
             return GraspSet(
@@ -1194,7 +1215,21 @@ class CapApi:
         if not grasps.ok:
             return None
         if strategy == "top_down":
-            return select_top_down_grasp(grasps)
+            # Grasp poses use the actual TCP frame. SO-101 approaches along +X;
+            # other providers historically use +Z. Never rotate the returned
+            # pose merely to fit a selection convention.
+            eligible = [
+                candidate
+                for candidate in grasps.grasps
+                if select_top_down_grasp(
+                    [candidate],
+                    approach_axis=candidate.metadata.get(
+                        "approach_axis", 0 if self._embodiment == "so101" else 2
+                    ),
+                )
+                is not None
+            ]
+            return max(eligible, key=lambda candidate: candidate.score, default=None)
         if strategy == "highest_score":
             return max(grasps.grasps, key=lambda candidate: candidate.score, default=None)
         raise ValueError("strategy must be 'top_down' or 'highest_score'")
@@ -1568,6 +1603,9 @@ class CapApi:
         extensions = (
             ("get_task_metadata", "metadata"),
             ("get_controller_metadata", "metadata"),
+            ("get_finger_contacts", "sensing"),
+            ("command_gripper", "control"),
+            ("command_joints", "control"),
             ("get_base_pose", "metadata"),
             ("navigate_to_pose", "execution"),
             ("move_torso", "execution"),
@@ -1639,7 +1677,7 @@ class CapApi:
             raise ValueError("no valid public depth points are available for motion planning")
         points = np.concatenate(clouds, axis=0)
         points = self._crop_to_planning_workspace(points, frame)
-        if target_point_cloud is not None:
+        if target_point_cloud is not None and self._embodiment != "so101":
             points = self._exclude_target_from_scene(points, target_point_cloud.points)
         cells = np.floor(points / voxel_size_m).astype(np.int64)
         _, first = np.unique(cells, axis=0, return_index=True)
@@ -1648,6 +1686,9 @@ class CapApi:
             point_cloud=PointCloud(points=downsampled, frame=frame),
             voxel_size_m=voxel_size_m,
             timestamp_s=observation.timestamp_s,
+            # SO-101 permits contact at distal pads only. Removing its target
+            # globally would let an arm link or palm pass through the fruit.
+            contact_target=target_point_cloud if self._embodiment == "so101" else None,
         )
 
     @staticmethod
@@ -1759,6 +1800,12 @@ class CapApi:
             self._home_joint_positions.setdefault(arm, np.array(joints, copy=True))
 
     def _commanded_gripper_position(self, state: RobotState, arm: str) -> float:
+        # Some adapters expose guarded extension commands which can cancel or
+        # change a setpoint outside this facade. Reconcile before shared motion
+        # so a stale cached opening cannot reopen a newly closed jaw.
+        getter = getattr(self._adapter, "commanded_gripper_position", None)
+        if callable(getter):
+            self._commanded_gripper_positions[arm] = getter(arm)
         return self._commanded_gripper_positions.setdefault(arm, state.gripper_positions[arm])
 
     def _execution_state(self, result: ExecutionResult) -> RobotState:

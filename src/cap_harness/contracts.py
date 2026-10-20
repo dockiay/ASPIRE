@@ -913,6 +913,7 @@ class PlanningScene:
     point_cloud: PointCloud
     voxel_size_m: float = 0.01
     timestamp_s: float | None = None
+    contact_target: PointCloud | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.point_cloud, PointCloud):
@@ -929,6 +930,12 @@ class PlanningScene:
             ),
         )
         object.__setattr__(self, "timestamp_s", _optional_timestamp(self.timestamp_s))
+
+        if self.contact_target is not None and (
+            not isinstance(self.contact_target, PointCloud)
+            or self.contact_target.frame != self.point_cloud.frame
+        ):
+            raise ValueError("contact_target must be a PointCloud in the planning scene frame")
 
     @property
     def frame(self) -> str:

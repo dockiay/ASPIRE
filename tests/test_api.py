@@ -783,8 +783,12 @@ def test_public_mask_projection_signature_is_policy_facing() -> None:
         "mask",
         "camera_name",
         "target_frame",
+        "erosion_pixels",
+        "depth_range_m",
     )
-    assert signature.parameters["target_frame"].default == "robot_base"
+    assert signature.parameters["target_frame"].default is None
+    assert signature.parameters["erosion_pixels"].kind == inspect.Parameter.KEYWORD_ONLY
+    assert signature.parameters["depth_range_m"].kind == inspect.Parameter.KEYWORD_ONLY
 
 
 def test_public_point_cloud_crop_is_frame_preserving() -> None:

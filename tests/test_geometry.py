@@ -192,3 +192,38 @@ def test_obb_and_explicit_top_down_selection() -> None:
     assert selected is candidates.grasps[1]
     with pytest.raises(ValueError, match="expected 'world'"):
         select_top_down_grasp(candidates, frame="world")
+
+
+def test_explicit_projection_filters_reject_silhouette_and_far_depth_without_mutating_mask():
+    depth = np.full((7, 7), 0.5)
+    depth[[0, -1], :] = 30
+    depth[:, [0, -1]] = 30
+    depth[3, 3] = 30
+    camera = CameraObservation(
+        rgb=np.full((7, 7, 3), 128, dtype=np.uint8),
+        depth_m=depth,
+        intrinsics=np.array([[100.0, 0, 3], [0, 100.0, 3], [0, 0, 1]]),
+        frame="camera",
+        camera_pose=Pose([1, 2, 3], [1, 0, 0, 0], "base"),
+    )
+    segmentation = Segmentation(
+        mask=np.ones((7, 7), dtype=bool),
+        label="object",
+        score=0.9,
+        camera_name="camera",
+        frame="camera",
+    )
+    raw = mask_to_point_cloud(camera, segmentation)
+    filtered = mask_to_point_cloud(
+        camera, segmentation, target_frame="base", erosion_pixels=1, depth_range_m=[0.1, 2.0]
+    )
+    assert len(raw.points) == 49 and raw.points[:, 2].max() == 30
+    assert len(filtered.points) == 24 and filtered.frame == "base"
+    np.testing.assert_allclose(filtered.points[:, 2], 3.5)
+    assert segmentation.mask.all() and camera.depth_m[3, 3] == 30
+    with pytest.raises(ValueError, match="erosion_pixels"):
+        mask_to_point_cloud(camera, segmentation, erosion_pixels=True)
+    with pytest.raises(ValueError, match="depth_range_m"):
+        mask_to_point_cloud(camera, segmentation, depth_range_m=[2, 1])
+    with pytest.raises(ValueError, match="after projection filters"):
+        mask_to_point_cloud(camera, segmentation, erosion_pixels=4)
