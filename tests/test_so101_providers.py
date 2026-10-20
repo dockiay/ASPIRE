@@ -91,3 +91,20 @@ def test_native_run_wires_shared_providers_and_measured_motion(tmp_path):
         capture_videos=False,
     )
     assert outcome.program_ok, outcome
+
+
+def test_full_task_public_metadata_omits_solver_targets():
+    from cap_harness.so101.harvest import SO101FruitGymHarvestEnvironment
+
+    metadata = SO101FruitGymHarvestEnvironment.lesson_metadata()
+    for key in (
+        "fruit_center_m",
+        "fruit_center_in_tool_m",
+        "container_center_xy_m",
+        "container_inner_half_size_m",
+        "container_floor_z_m",
+        "container_rim_z_m",
+        "release_fruit_center_z_m",
+        "bent_load_threshold_n",
+    ):
+        assert key not in metadata

@@ -12,14 +12,14 @@ from cap_harness.geometry import mask_to_point_cloud
 from cap_harness.so101.adapter import SO101Adapter
 
 
-@pytest.fixture(scope="module")
-def native_camera_adapter():
+@pytest.fixture(scope="module", params=["so101_control", "so101_fruitgym_harvest"])
+def native_camera_adapter(request):
     pytest.importorskip("mujoco")
     pytest.importorskip("robosuite")
     if not (Path(__file__).resolve().parents[1] / "third_party/so_arm100/Simulation/SO101/so101_new_calib.xml").is_file():
         pytest.skip("Run bash scripts/bootstrap_so101.sh")
     adapter = SO101Adapter(camera_width=64, camera_height=48, horizon=10)
-    adapter.reset("so101_control", 0)
+    adapter.reset(request.param, 0)
     yield adapter
     adapter.close()
 
@@ -117,3 +117,56 @@ def test_sensor_parameters_and_public_intrinsics_match(native_camera_adapter):
         assert camera.depth_m.shape == (48, 64)
         assert camera.camera_pose.frame == "so101_base"
     assert adapter.current_time_s == 0
+
+
+def test_current_scene_sensor_range_contains_conservative_robot_reach(native_camera_adapter):
+    adapter = native_camera_adapter
+    observation = adapter.get_observation()
+    model = adapter.native_env.model
+    near = float(model.vis.map.znear * model.stat.extent)
+    far = float(model.vis.map.zfar * model.stat.extent)
+    assert near == pytest.approx(0.02)
+    assert far == pytest.approx(5.0)
+    assert model.vis.quality.offsamples == 0
+    reach_radius = adapter.planning_workspace()[1][0]
+    for camera in observation.cameras.values():
+        np.testing.assert_allclose(camera.intrinsics[:2, 2], [31.5, 23.5])
+        assert camera.depth_m.shape == (48, 64)
+        assert camera.camera_pose.frame == "so101_base"
+        forward = camera.camera_pose.as_matrix()[:3, 2]
+        base_depth = -float(camera.camera_pose.position @ forward)
+        assert base_depth - reach_radius > near
+        assert base_depth + reach_radius < far
+    assert adapter.current_time_s == 0
+
+
+@pytest.mark.parametrize(
+    "task,seed", [("so101_strawberry_detachment", 0), ("so101_strawberry_detachment_cases", 101)]
+)
+def test_legacy_detachment_initial_finite_geometry_is_within_sensor_depth_range(task, seed):
+    mujoco = pytest.importorskip("mujoco")
+    pytest.importorskip("robosuite")
+    adapter = SO101Adapter(camera_width=64, camera_height=48, horizon=10)
+    try:
+        adapter.reset(task, seed)
+        model, sim = adapter.native_env.model, adapter.native_env.sim
+        near = float(model.vis.map.znear * model.stat.extent)
+        far = float(model.vis.map.zfar * model.stat.extent)
+        for camera in range(model.ncam):
+            forward = -sim.data.get_camera_xmat(model.camera(camera).name)[:, 2]
+            origin = sim.data.get_camera_xpos(model.camera(camera).name)
+            for geom in range(model.ngeom):
+                if model.geom_type[geom] in (
+                    mujoco.mjtGeom.mjGEOM_PLANE,
+                    mujoco.mjtGeom.mjGEOM_HFIELD,
+                ):
+                    continue
+                center_depth = float((sim.data.geom_xpos[geom] - origin) @ forward)
+                radius = float(model.geom_rbound[geom])
+                assert center_depth - radius > near
+                assert center_depth + radius < far
+        # This proves the initial finite geometry only. These older close
+        # cameras do not contain the entire robot-reach sphere at every pose.
+        assert adapter.current_time_s == 0
+    finally:
+        adapter.close()
