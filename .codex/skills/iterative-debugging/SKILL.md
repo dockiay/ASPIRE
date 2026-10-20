@@ -5,6 +5,11 @@ description: "Run the baseline-free CaP iterative debugging (fix loop) pipeline 
 
 # Iterative Debugging (Fix Loop)
 
+For `so101` strawberry tasks, start with the canonical profile at
+`.claude/skills/iterative-debugging/so101/SKILL.md`. Its coordinator, controlled
+development worker, reserved case protocol and verified library replace the
+generic tabletop run order for this task.
+
 **This file is a pointer, not a copy.** The pipeline lives in
 `.claude/skills/iterative-debugging/SKILL.md`, and that file is canonical under every agent
 harness including this one. Read it now and follow it as written: setup, run order, prompts,

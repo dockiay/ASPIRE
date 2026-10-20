@@ -7,6 +7,7 @@ from scipy.spatial.transform import Rotation
 from cap_harness.contracts import IKResult, Pose, RobotState
 from cap_harness.errors import ApiError, ErrorCode
 from cap_harness.so101.kinematics import RobotKinematics
+from cap_harness.so101.segmentation import ColorSegmentationProvider  # noqa: F401
 
 
 class SO101IKProvider:

@@ -1,0 +1,41 @@
+{
+  "schema": "so101-external-skill-references-v1",
+  "upstream_revision": "fa00f0ef2bc1d91d594b9aa502c22133c9f538f7",
+  "references": {
+    "upstream-localize": {
+      "path": ".claude/skills/iterative-debugging/skills/localize.md",
+      "sha256": "88d2b8eb60dc0d43fd891110a92b3327e524e5392ac17ad675c85e2143861d75",
+      "source_url": "https://github.com/NVlabs/ASPIRE/blob/fa00f0ef2bc1d91d594b9aa502c22133c9f538f7/.claude/skills/iterative-debugging/skills/localize.md",
+      "status": "external-unverified-so101",
+      "adaptation_notes": "Specific SAM3 prompts, ambiguity handling and observed geometry. Visible surfaces can bias centers; validate with both cameras. Never copy fixed pixels or thresholds as target truth."
+    },
+    "upstream-grasp": {
+      "path": ".claude/skills/iterative-debugging/skills/grasp.md",
+      "sha256": "2ca0fee3df9117ddf764805a388d10a70c8f190263a5c438b1a46ecc58551284",
+      "source_url": "https://github.com/NVlabs/ASPIRE/blob/fa00f0ef2bc1d91d594b9aa502c22133c9f538f7/.claude/skills/iterative-debugging/skills/grasp.md",
+      "status": "external-unverified-so101",
+      "adaptation_notes": "Candidate selection and grasp verification patterns. Use SO-101 defaults, TCP +X approach, measured angular jaw and five-axis reachability. Contact-GraspNet/Panda TCP assumptions and free-object lift success are not this benchmark contract."
+    },
+    "upstream-mobile-grasp": {
+      "path": ".claude/skills/iterative-debugging/behavior/skills/mobile-grasp.md",
+      "sha256": "6f1d2e0a03d37c92288c4ad3787ce6f91406546fda0771d68fb4d0439c1b8111",
+      "source_url": "https://github.com/NVlabs/ASPIRE/blob/fa00f0ef2bc1d91d594b9aa502c22133c9f538f7/.claude/skills/iterative-debugging/behavior/skills/mobile-grasp.md",
+      "status": "external-unverified-so101",
+      "adaptation_notes": "Alternative grasp candidates and geometry-based feasibility. R1 Pro TCP +Z, parallel jaw span, mobile base and torso do not apply. Do not remove the entire target from obstacles; SO-101 permits only distal pad contact. A 5mm lift is not retention verification."
+    },
+    "upstream-transport": {
+      "path": ".claude/skills/iterative-debugging/skills/transport.md",
+      "sha256": "6390321c603d31748a771caee1d04fa3082b44ae89acf7054f72e4444a18fdbe",
+      "source_url": "https://github.com/NVlabs/ASPIRE/blob/fa00f0ef2bc1d91d594b9aa502c22133c9f538f7/.claude/skills/iterative-debugging/skills/transport.md",
+      "status": "external-unverified-so101",
+      "adaptation_notes": "Retain grip during transit, observe slip and avoid home opening the gripper. Solver-conditioning tricks and absolute transport heights are robot/task specific. Derive feasible paths from observations."
+    },
+    "upstream-manipulation": {
+      "path": ".claude/skills/iterative-debugging/skills/manipulation.md",
+      "sha256": "e7733e886aa54f3f94678abbad584944cebdb8257e4ae00776de2a69c9e8e1bc",
+      "source_url": "https://github.com/NVlabs/ASPIRE/blob/fa00f0ef2bc1d91d594b9aa502c22133c9f538f7/.claude/skills/iterative-debugging/skills/manipulation.md",
+      "status": "external-unverified-so101",
+      "adaptation_notes": "Contact, rotation and pull ideas; some entries are templates without validated code. SO-101 has five axes; knob/hinge mechanics are not strawberry mechanics. Current synthetic release models bend/pull and straight pull, not calibrated axial-torsion fracture."
+    }
+  }
+}

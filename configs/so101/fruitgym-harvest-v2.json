@@ -1,0 +1,141 @@
+{
+  "version": "so101-fruitgym-harvest-v2",
+  "suite": "so101_fruitgym_harvest",
+  "task_contract": "so101-fruitgym-harvest-v2",
+  "scope": "Small synthetic benchmark: plant/container translation, release load and friction; not calibrated biological generalization",
+  "asset_manifest": "configs/so101/fruitgym-assets-v1.json",
+  "cases": [
+    {
+      "seed": 0,
+      "partition": "development",
+      "plant_offset_m": [
+        0,
+        0,
+        0
+      ],
+      "container_offset_m": [
+        0,
+        0
+      ],
+      "release_load_scale": 1,
+      "fruit_friction": 1
+    },
+    {
+      "seed": 1001,
+      "partition": "development",
+      "plant_offset_m": [
+        -0.012,
+        -0.012,
+        0
+      ],
+      "container_offset_m": [
+        0.008,
+        0.006
+      ],
+      "release_load_scale": 0.9,
+      "fruit_friction": 0.9
+    },
+    {
+      "seed": 1002,
+      "partition": "development",
+      "plant_offset_m": [
+        -0.005,
+        0.012,
+        -0.008
+      ],
+      "container_offset_m": [
+        -0.008,
+        -0.004
+      ],
+      "release_load_scale": 1.1,
+      "fruit_friction": 1.1
+    },
+    {
+      "seed": 2001,
+      "partition": "validation",
+      "plant_offset_m": [
+        -0.01,
+        0.006,
+        -0.004
+      ],
+      "container_offset_m": [
+        0.005,
+        -0.006
+      ],
+      "release_load_scale": 1.05,
+      "fruit_friction": 0.95
+    },
+    {
+      "seed": 2002,
+      "partition": "validation",
+      "plant_offset_m": [
+        0.005,
+        -0.006,
+        0
+      ],
+      "container_offset_m": [
+        -0.005,
+        0.006
+      ],
+      "release_load_scale": 0.95,
+      "fruit_friction": 1.05
+    },
+    {
+      "seed": 3001,
+      "partition": "evaluation",
+      "plant_offset_m": [
+        -0.008,
+        -0.008,
+        -0.006
+      ],
+      "container_offset_m": [
+        0.006,
+        0.004
+      ],
+      "release_load_scale": 1.08,
+      "fruit_friction": 0.92
+    },
+    {
+      "seed": 3002,
+      "partition": "evaluation",
+      "plant_offset_m": [
+        -0.003,
+        0.009,
+        -0.003
+      ],
+      "container_offset_m": [
+        -0.006,
+        -0.004
+      ],
+      "release_load_scale": 0.92,
+      "fruit_friction": 1.08
+    },
+    {
+      "seed": 3003,
+      "partition": "evaluation",
+      "plant_offset_m": [
+        0.004,
+        0.003,
+        -0.005
+      ],
+      "container_offset_m": [
+        0.003,
+        -0.005
+      ],
+      "release_load_scale": 1.02,
+      "fruit_friction": 0.98
+    }
+  ],
+  "reserved_partitions": [
+    "validation",
+    "evaluation"
+  ],
+  "success": "Outcome-based opposing grasp >=0.5 s, mechanical release, >=2 s free retention (may overlap carry), >=15 cm carry, >=0.25 s settled hold anywhere above usable container, release, stable containment/base support >=1 s and open gripper withdrawn >=8 cm",
+  "public_limits": {
+    "finger_force_n": 12,
+    "penetration_m": 0.0015,
+    "relative_slip_m": 0.008,
+    "max_release_clearance_above_rim_m": 0.15
+  },
+  "calibrated_for_hardware": false
+}

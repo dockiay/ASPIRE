@@ -9,7 +9,9 @@ from cap_harness.providers.sam3.client import DEFAULT_SAM3_URL, Sam3Provider
 
 def configuration(suite=None, env=None):
     env = os.environ if env is None else env
-    backend = env.get("CAP_HARNESS_SO101_SEGMENTATION") or "color-rgbd"
+    backend = env.get("CAP_HARNESS_SO101_SEGMENTATION") or (
+        "sam3" if suite == "so101_fruitgym_harvest" else "color-rgbd"
+    )
     if backend not in ("sam3", "color-rgbd"):
         raise ValueError("CAP_HARNESS_SO101_SEGMENTATION must be sam3 or color-rgbd")
     return {

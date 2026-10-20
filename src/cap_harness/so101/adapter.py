@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+import json
 from types import MappingProxyType
 from typing import Any
 
@@ -39,15 +40,40 @@ class SO101Adapter(RobosuiteAdapter):
     def _make_environment(self, metadata):
         if self._env_factory is not None:
             return self._env_factory(metadata)
+        from cap_harness.so101.case_environment import SO101StrawberryDetachmentCasesEnvironment
+        from cap_harness.so101.detachment import SO101StrawberryDetachmentEnvironment
         from cap_harness.so101.environment import SO101ControlEnvironment
+        from cap_harness.so101.grasp_contact import SO101StrawberryGraspContactEnvironment
+        from cap_harness.so101.harvest import SO101FruitGymHarvestEnvironment
+        from cap_harness.so101.retention import (
+            SO101StrawberryRetentionEnvironment,
+            SO101StrawberryRetentionTorsionEnvironment,
+        )
+        from cap_harness.so101.strawberry import SO101StrawberryApproachEnvironment
+        from cap_harness.so101.transport import SO101StrawberryTransportEnvironment
 
-        if metadata.task_name != "so101_control":
-            raise ValueError("Only the so101_control task is available")
-        return SO101ControlEnvironment(
+        environment_type = {
+            "so101_control": SO101ControlEnvironment,
+            "so101_strawberry_approach": SO101StrawberryApproachEnvironment,
+            "so101_strawberry_grasp_contact": SO101StrawberryGraspContactEnvironment,
+            "so101_strawberry_retention": SO101StrawberryRetentionEnvironment,
+            "so101_strawberry_retention_torsion": SO101StrawberryRetentionTorsionEnvironment,
+            "so101_strawberry_transport": SO101StrawberryTransportEnvironment,
+            "so101_strawberry_detachment": SO101StrawberryDetachmentEnvironment,
+            "so101_strawberry_detachment_cases": SO101StrawberryDetachmentCasesEnvironment,
+            "so101_fruitgym_harvest": SO101FruitGymHarvestEnvironment,
+        }[metadata.task_name]
+        case_arguments = (
+            {"seed": self._seed}
+            if metadata.task_name in ("so101_strawberry_detachment_cases", "so101_fruitgym_harvest")
+            else {}
+        )
+        return environment_type(
             width=self.camera_width,
             height=self.camera_height,
             frequency=self.control_frequency,
             horizon=self.horizon,
+            **case_arguments,
         )
 
     def _build_codec(self, metadata):
@@ -181,6 +207,8 @@ class SO101Adapter(RobosuiteAdapter):
         return result
 
     def set_gripper(self, position: float, *, arm: str = "primary") -> ExecutionResult:
+        if getattr(self._require_env(), "task_name", None) == "so101_fruitgym_harvest":
+            return self.command_gripper(position, arm=arm)
         result = super().set_gripper(position, arm=arm)
         if result.ok and abs(self.get_robot_state().gripper_positions[arm] - position) > 0.025:
             return replace(
@@ -192,7 +220,9 @@ class SO101Adapter(RobosuiteAdapter):
 
     def get_controller_metadata(self):
         from cap_harness.so101.joint_control import action_limits
+        from cap_harness.so101.perception import configuration
 
+        perception = configuration(self.get_task_context().task_name)
         metadata = dict(super().get_controller_metadata())
         env = self._require_env()
         low, high = self.action_bounds
@@ -229,6 +259,11 @@ class SO101Adapter(RobosuiteAdapter):
                 "scope": "observed geometry only; inspect plan diagnostics for limits",
             },
             tcp_approach_axis="+X in so101_gripperframe",
+            segmentation_backend=perception["backend"],
+            perception=perception,
+            grasp_backend="so101-geometric",
+            open_standoff_planning_supported=True,
+            ripe_red_rgbd_localization_supported=perception["backend"] == "color-rgbd",
         )
         return MappingProxyType(metadata)
 
@@ -551,3 +586,65 @@ class SO101Adapter(RobosuiteAdapter):
             finger_contact_mask=finger_contact_mask,
             margin_m=margin_m,
         )
+
+    def get_task_metadata(self):
+        metadata = dict(super().get_task_metadata())
+        lesson = getattr(self._require_env(), "lesson_metadata", None)
+        if callable(lesson):
+            metadata["lesson"] = lesson()
+        return MappingProxyType(metadata)
+
+    def compare_visual_motion(self, before, after, masks_before, masks_after, arm="primary"):
+        """Compare caller-selected image surfaces with measured tool motion; never step."""
+        from cap_harness.so101.visual_motion import compare_visual_motion
+
+        return compare_visual_motion(before, after, masks_before, masks_after, arm=arm)
+
+    def localize_ripe_fruit(self):
+        """Estimate a unique ripe-red fruit center from both public calibrated RGB-D views."""
+        from cap_harness.so101.perception import configuration
+        from cap_harness.so101.vision import localize
+
+        if configuration(self._require_env().task_name)["backend"] != "color-rgbd":
+            raise ValueError(
+                "Color-only legacy localizer disabled: use shared localize_object with SAM3"
+            )
+
+        return localize(self.get_observation())
+
+    def plan_open_approach(self, fruit_point_m, clearance_m: float = 0.065):
+        """Plan a robot-model-only joint approach to a runtime visual point; does not move.
+
+        Requires open gripper. Checks nominal self/work-plane collision, not unknown obstacles.
+        """
+        from cap_harness.so101.approach import RobotKinematics
+
+        if not hasattr(self, "_approach_kinematics"):
+            self._approach_kinematics = RobotKinematics()
+        return self._approach_kinematics.plan(self.get_robot_state(), fruit_point_m, clearance_m)
+
+    def finish_episode_recording(self) -> None:
+        evidence = getattr(self._env, "task_evidence", None)
+        if self._run_observer is not None and callable(evidence):
+            path = self._run_observer.root / "evaluation/so101-task.json"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            task_evidence = evidence()
+            if self._env.task_name == "so101_fruitgym_harvest":
+                position = self._env.fruit_position()
+                transform = self._primary_from_world()
+                task_evidence["skill_evaluation_reference"] = {
+                    "fruit_position_m": (transform[:3, :3] @ position + transform[:3, 3]).tolist(),
+                    "frame": self.BASE_FRAME,
+                    "timestamp_s": self.current_time_s,
+                    "scope": "host-only evaluator reference; never passed through public policy tools",
+                }
+            path.write_text(json.dumps(task_evidence, indent=2) + "\n", encoding="utf-8")
+            if "diagnostics" in task_evidence:
+                diagnostic_path = path.parent / "so101-diagnostics.json"
+                diagnostic_path.write_text(
+                    json.dumps(task_evidence["diagnostics"], indent=2) + "\n", encoding="utf-8"
+                )
+            protocol = getattr(self._env, "case_protocol_snapshot", None)
+            if protocol is not None:
+                protocol_path = path.parent / "so101-case-protocol.json"
+                protocol_path.write_text(json.dumps(protocol, indent=2) + "\n", encoding="utf-8")

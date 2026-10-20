@@ -84,7 +84,10 @@ def campaign_settings(run_root: Path | None) -> dict:
 
 
 def heldout_seeds(run_root: Path | None) -> list[int]:
-    return list(range(1, int(campaign_settings(run_root)["heldout_count"]) + 1))
+    settings = campaign_settings(run_root)
+    if "heldout_seeds" in settings:
+        return list(settings["heldout_seeds"])
+    return list(range(1, int(settings["heldout_count"]) + 1))
 
 
 def format_seed_range(seeds: list[int]) -> str:
@@ -246,6 +249,7 @@ PUBLIC_TOOLS = (
     "set_gripper",
     "libero",
     "robosuite",
+    "so101",
     "robocasa",
 )
 #: Names the library itself establishes, so a snippet may use them bare: the two

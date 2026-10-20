@@ -1,0 +1,259 @@
+{
+  "schema_version": 1,
+  "protocol_version": "so101-strawberry-detachment-v1",
+  "task_name": "so101_strawberry_detachment_cases",
+  "description": "Synthetic combinations of published force samples and uncalibrated junction solver parameters; fixed geometry.",
+  "force_source_doi": "10.1017/S0263574714001155",
+  "force_source_table": 1,
+  "biological_fracture_calibrated": false,
+  "partitions": {
+    "development": [
+      101,
+      102,
+      103,
+      104,
+      105,
+      106,
+      107,
+      108,
+      109,
+      110,
+      111,
+      112
+    ],
+    "validation": [
+      201,
+      202,
+      203,
+      204,
+      205,
+      206
+    ],
+    "evaluation": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12
+    ]
+  },
+  "cases": [
+    {
+      "case_id": "evaluation-1",
+      "seed": 1,
+      "partition": "evaluation",
+      "bent_force_n": 2.78,
+      "junction_time_constant_s": 0.011
+    },
+    {
+      "case_id": "evaluation-2",
+      "seed": 2,
+      "partition": "evaluation",
+      "bent_force_n": 2.78,
+      "junction_time_constant_s": 0.012
+    },
+    {
+      "case_id": "evaluation-3",
+      "seed": 3,
+      "partition": "evaluation",
+      "bent_force_n": 3.76,
+      "junction_time_constant_s": 0.012
+    },
+    {
+      "case_id": "evaluation-4",
+      "seed": 4,
+      "partition": "evaluation",
+      "bent_force_n": 3.76,
+      "junction_time_constant_s": 0.008
+    },
+    {
+      "case_id": "evaluation-5",
+      "seed": 5,
+      "partition": "evaluation",
+      "bent_force_n": 2.31,
+      "junction_time_constant_s": 0.008
+    },
+    {
+      "case_id": "evaluation-6",
+      "seed": 6,
+      "partition": "evaluation",
+      "bent_force_n": 2.31,
+      "junction_time_constant_s": 0.009
+    },
+    {
+      "case_id": "evaluation-7",
+      "seed": 7,
+      "partition": "evaluation",
+      "bent_force_n": 1.57,
+      "junction_time_constant_s": 0.009
+    },
+    {
+      "case_id": "evaluation-8",
+      "seed": 8,
+      "partition": "evaluation",
+      "bent_force_n": 1.57,
+      "junction_time_constant_s": 0.01
+    },
+    {
+      "case_id": "evaluation-9",
+      "seed": 9,
+      "partition": "evaluation",
+      "bent_force_n": 5.1,
+      "junction_time_constant_s": 0.01
+    },
+    {
+      "case_id": "evaluation-10",
+      "seed": 10,
+      "partition": "evaluation",
+      "bent_force_n": 5.1,
+      "junction_time_constant_s": 0.011
+    },
+    {
+      "case_id": "evaluation-11",
+      "seed": 11,
+      "partition": "evaluation",
+      "bent_force_n": 3.53,
+      "junction_time_constant_s": 0.011
+    },
+    {
+      "case_id": "evaluation-12",
+      "seed": 12,
+      "partition": "evaluation",
+      "bent_force_n": 3.53,
+      "junction_time_constant_s": 0.012
+    },
+    {
+      "case_id": "development-101",
+      "seed": 101,
+      "partition": "development",
+      "bent_force_n": 2.78,
+      "junction_time_constant_s": 0.008
+    },
+    {
+      "case_id": "development-102",
+      "seed": 102,
+      "partition": "development",
+      "bent_force_n": 2.78,
+      "junction_time_constant_s": 0.009
+    },
+    {
+      "case_id": "development-103",
+      "seed": 103,
+      "partition": "development",
+      "bent_force_n": 3.76,
+      "junction_time_constant_s": 0.009
+    },
+    {
+      "case_id": "development-104",
+      "seed": 104,
+      "partition": "development",
+      "bent_force_n": 3.76,
+      "junction_time_constant_s": 0.01
+    },
+    {
+      "case_id": "development-105",
+      "seed": 105,
+      "partition": "development",
+      "bent_force_n": 2.31,
+      "junction_time_constant_s": 0.01
+    },
+    {
+      "case_id": "development-106",
+      "seed": 106,
+      "partition": "development",
+      "bent_force_n": 2.31,
+      "junction_time_constant_s": 0.011
+    },
+    {
+      "case_id": "development-107",
+      "seed": 107,
+      "partition": "development",
+      "bent_force_n": 1.57,
+      "junction_time_constant_s": 0.011
+    },
+    {
+      "case_id": "development-108",
+      "seed": 108,
+      "partition": "development",
+      "bent_force_n": 1.57,
+      "junction_time_constant_s": 0.012
+    },
+    {
+      "case_id": "development-109",
+      "seed": 109,
+      "partition": "development",
+      "bent_force_n": 5.1,
+      "junction_time_constant_s": 0.012
+    },
+    {
+      "case_id": "development-110",
+      "seed": 110,
+      "partition": "development",
+      "bent_force_n": 5.1,
+      "junction_time_constant_s": 0.008
+    },
+    {
+      "case_id": "development-111",
+      "seed": 111,
+      "partition": "development",
+      "bent_force_n": 3.53,
+      "junction_time_constant_s": 0.008
+    },
+    {
+      "case_id": "development-112",
+      "seed": 112,
+      "partition": "development",
+      "bent_force_n": 3.53,
+      "junction_time_constant_s": 0.009
+    },
+    {
+      "case_id": "validation-201",
+      "seed": 201,
+      "partition": "validation",
+      "bent_force_n": 2.78,
+      "junction_time_constant_s": 0.01
+    },
+    {
+      "case_id": "validation-202",
+      "seed": 202,
+      "partition": "validation",
+      "bent_force_n": 3.76,
+      "junction_time_constant_s": 0.011
+    },
+    {
+      "case_id": "validation-203",
+      "seed": 203,
+      "partition": "validation",
+      "bent_force_n": 2.31,
+      "junction_time_constant_s": 0.012
+    },
+    {
+      "case_id": "validation-204",
+      "seed": 204,
+      "partition": "validation",
+      "bent_force_n": 1.57,
+      "junction_time_constant_s": 0.008
+    },
+    {
+      "case_id": "validation-205",
+      "seed": 205,
+      "partition": "validation",
+      "bent_force_n": 5.1,
+      "junction_time_constant_s": 0.009
+    },
+    {
+      "case_id": "validation-206",
+      "seed": 206,
+      "partition": "validation",
+      "bent_force_n": 3.53,
+      "junction_time_constant_s": 0.01
+    }
+  ]
+}
