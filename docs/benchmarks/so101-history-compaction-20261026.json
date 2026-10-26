@@ -1,0 +1,192 @@
+{
+  "schema": "so101-history-regression-v1",
+  "scope": "Synthetic context stress plus real MuJoCo SO-101 control, not harvest learning",
+  "baseline_revision": "e763d2256d29b20ace9096a55479bc92353a3f80",
+  "model_selection": "Same CLI default with user config ignored; no model override",
+  "trials": [
+    {
+      "pair": "pair-02",
+      "condition": "baseline",
+      "model": null,
+      "codex_build": "2993767bd1dfb009",
+      "compaction": null,
+      "fixture": {
+        "seed": 17,
+        "log_rows": 120
+      },
+      "usage": {
+        "input_tokens": 286710,
+        "cached_input_tokens": 220416,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 783,
+        "reasoning_output_tokens": 80
+      },
+      "wall_s": 33.65600000007544,
+      "total_tokens": 287493,
+      "uncached_input_tokens": 66294,
+      "pages_read": 6,
+      "correct_harvest_claim": true,
+      "all_evidence_reported": true,
+      "diagnosis": "Closure stopped on unilateral contact without verified bilateral retention or fruit co-motion, so the grasp prerequisite failed and twisting was not evaluated. Program completion did not establish supported placement or harvest success. This observation-only run performed no harvest. Joint actions are capped at 200 ticks total; the supplied API does not expose jaw tick bounds or a tick counter, so the overall 400-tick limit cannot be independently guaranteed from this contract.",
+      "physical_control": {
+        "program_ok": true,
+        "task_success": true,
+        "steps_executed": 100,
+        "run_dir": "outputs\\history-compression\\pair-02\\baseline\\physics\\so101\\so101_control\\00-so101-control\\0000\\run-20261026T175110.805530Z-4db8a1cc",
+        "program_sha256": "a81a13a053c3c5cbd842c91fd118309a5c0629ff2ad0d884678402234d29e20b",
+        "manifest_sha256": "6798471c979bf4eb0c6e458e082104e1ca160d073fb504dc1afdf68bcf346ab7"
+      },
+      "request_sha256": "6baa8201ad8e5b6954e9b514a2c820bf74dcfe48aa84fa07ae12a1828592aa4d",
+      "response_sha256": "2183159fac21c95883b893c0252345a0d62b9b0ae3394362d595ec960e7d72f2",
+      "events_sha256": "d737932b05fa54b277681e9d3e4aff2f89b98ab301f41d66ee691610551652b2"
+    },
+    {
+      "pair": "pair-02",
+      "condition": "compressed",
+      "model": null,
+      "codex_build": "2993767bd1dfb009",
+      "compaction": {
+        "token_limit": 24000
+      },
+      "fixture": {
+        "seed": 17,
+        "log_rows": 120
+      },
+      "usage": {
+        "input_tokens": 125668,
+        "cached_input_tokens": 91904,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 900,
+        "reasoning_output_tokens": 204
+      },
+      "wall_s": 83.10899999993853,
+      "total_tokens": 126568,
+      "uncached_input_tokens": 33764,
+      "pages_read": 6,
+      "correct_harvest_claim": true,
+      "all_evidence_reported": true,
+      "diagnosis": "Diagnostic A stopped at unilateral contact without verified fruit co-motion, so the grasp prerequisite failed and twisting was not evaluated. Diagnostic B completed its program but verified neither bilateral retention nor supported placement. No harvest was completed in this observation-only regression.",
+      "physical_control": {
+        "program_ok": true,
+        "task_success": true,
+        "steps_executed": 100,
+        "run_dir": "outputs\\history-compression\\pair-02\\compressed\\physics\\so101\\so101_control\\00-so101-control\\0000\\run-20261026T175347.773885Z-b26764a5",
+        "program_sha256": "38812b3371989a4b99f3837895ce9cddf87e089bb7c1c8b06692bb7c7a51157f",
+        "manifest_sha256": "fafa72183822ed659736dd7f5442c6350125495f1fea2cdbc0fa40b0484d95d7"
+      },
+      "request_sha256": "77b38a44ee9e9d71d960f0ff8064725fd665bd1871e280a4a1c4cff1b9eb1aca",
+      "response_sha256": "bed3cd8491b5c2a55dbf9f260bd6859fc282f438c98db8e226520894ec08cedd",
+      "events_sha256": "56da6ca010bb19ddfdd668bc0f5d5809eed896cef8a87e8ba225ea260a2ad1cd"
+    },
+    {
+      "pair": "pair-03",
+      "condition": "baseline",
+      "model": null,
+      "codex_build": "2993767bd1dfb009",
+      "compaction": null,
+      "fixture": {
+        "seed": 17,
+        "log_rows": 120
+      },
+      "usage": {
+        "input_tokens": 286724,
+        "cached_input_tokens": 220416,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 748,
+        "reasoning_output_tokens": 90
+      },
+      "wall_s": 38.79700000002049,
+      "total_tokens": 287472,
+      "uncached_input_tokens": 66308,
+      "pages_read": 6,
+      "correct_harvest_claim": true,
+      "all_evidence_reported": true,
+      "diagnosis": "Harvest failed at the grasp prerequisite: closure stopped on unilateral contact, with no verified bilateral retention or fruit co-motion. Twisting was therefore unevaluated, and supported placement was unverified despite program completion. This run only read evidence; the control program has not run. Joint motion is capped at 200 ticks; the exposed jaw API provides no tick limit or counter to independently guarantee the overall 400-tick bound.",
+      "physical_control": {
+        "program_ok": true,
+        "task_success": true,
+        "steps_executed": 100,
+        "run_dir": "outputs\\history-compression\\pair-03\\baseline\\physics\\so101\\so101_control\\00-so101-control\\0000\\run-20261026T175616.957466Z-a1389eac",
+        "program_sha256": "81fcef96af09811a3816befa137a5d092b026017fcbafcd89d0acb54963c22a7",
+        "manifest_sha256": "dc8d2901732f66362d1df6d6e2f74d94ab2da5cdf60533d93cd25ecef367b9a8"
+      },
+      "request_sha256": "f405cc0b5eb4a73d5550485f9be45213f772d9d469f580cb6c742cc9cd390aa8",
+      "response_sha256": "d38076b22c66e6f03980d8b3b753502c1e72728dd9b2cde47f617d3370df0fd6",
+      "events_sha256": "d9a8323db7fd637b1e1b35e0c9b8ce0d852d782aeb034999f21cab2f234a63b8"
+    },
+    {
+      "pair": "pair-03",
+      "condition": "compressed",
+      "model": null,
+      "codex_build": "2993767bd1dfb009",
+      "compaction": {
+        "token_limit": 24000
+      },
+      "fixture": {
+        "seed": 17,
+        "log_rows": 120
+      },
+      "usage": {
+        "input_tokens": 133753,
+        "cached_input_tokens": 77312,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 792,
+        "reasoning_output_tokens": 93
+      },
+      "wall_s": 108.81299999996554,
+      "total_tokens": 134545,
+      "uncached_input_tokens": 56441,
+      "pages_read": 6,
+      "correct_harvest_claim": true,
+      "all_evidence_reported": true,
+      "diagnosis": "Closure stopped at unilateral contact, with no verified fruit co-motion; the grasp prerequisite failed, so twisting was not evaluated. Diagnostic-B completed its program but verified neither bilateral retention nor supported placement. This observation-only regression performed no harvest.",
+      "physical_control": {
+        "program_ok": true,
+        "task_success": true,
+        "steps_executed": 100,
+        "run_dir": "outputs\\history-compression\\pair-03\\compressed\\physics\\so101\\so101_control\\00-so101-control\\0000\\run-20261026T175616.956724Z-d2fe6d03",
+        "program_sha256": "f860b4a53c65ab224a90b405d6d01567ebeda9cfb9bb79b9eecacb17ac0fbd8b",
+        "manifest_sha256": "2a795c1a64d17c7d74f4b9490cee28b725cd741097a31f19ffb022a34c3870f3"
+      },
+      "request_sha256": "3dd1aaa5e3309421795d253da3d7204df8f96942b56ace5a2837282415138623",
+      "response_sha256": "8df7a57491c4f79ebf3f49310d67897e5ca5463c833fa692a6246510c30bfd97",
+      "events_sha256": "1352ef45e61ecfa4bc44a02c1d54154f373cfad6d2f6e5b5ddf22fe888bb7b16"
+    }
+  ],
+  "aggregate": {
+    "baseline": {
+      "trials": 2,
+      "control_successes": 2,
+      "program_successes": 2,
+      "correct_harvest_claims": 2,
+      "all_evidence_reported": 2,
+      "total_tokens": 574965,
+      "uncached_input_tokens": 132602,
+      "wall_s": 72.45300000009593,
+      "input_tokens": 573434,
+      "cached_input_tokens": 440832,
+      "output_tokens": 1531
+    },
+    "compressed": {
+      "trials": 2,
+      "control_successes": 2,
+      "program_successes": 2,
+      "correct_harvest_claims": 2,
+      "all_evidence_reported": 2,
+      "total_tokens": 261113,
+      "uncached_input_tokens": 90205,
+      "wall_s": 191.92199999990407,
+      "input_tokens": 259421,
+      "cached_input_tokens": 169216,
+      "output_tokens": 1692
+    }
+  },
+  "token_reduction_percent": 54.58627916481873,
+  "harvest_success_evaluated": false,
+  "limitations": [
+    "Two repetitions of one fixture/control case, not a success-rate estimate",
+    "CLI-reported tokens, not an API invoice or cost estimate",
+    "API native compaction tested with fixtures; live trials used Codex",
+    "Native compaction markers are not exposed in this CLI JSONL format"
+  ]
+}

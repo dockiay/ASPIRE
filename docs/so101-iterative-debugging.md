@@ -15,6 +15,11 @@ Responses. Ambos utilizan las mismas seis herramientas, APIs del robot,
 observaciones, límites y evaluación. El controlador propone programas; ASPIRE
 ejecuta las acciones a través del adaptador SO-101 en Robosuite/MuJoCo.
 
+Ambos controladores admiten [compresión nativa del historial](so101-history-compaction.md)
+mediante `history_compaction.token_limit` en su configuración. Los registros íntegros
+se conservan para auditoría y reanudación; omitir el ajuste mantiene el comportamiento
+anterior de cada proveedor.
+
 ```mermaid
 flowchart LR
     L[Codex o API] --> T[Herramientas de ASPIRE]

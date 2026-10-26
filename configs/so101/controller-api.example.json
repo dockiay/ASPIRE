@@ -4,5 +4,6 @@
   "base_url": "https://api.openai.com/v1",
   "api_key_env": "OPENAI_API_KEY",
   "max_output_tokens": 16000,
-  "request_timeout_s": 180
+  "request_timeout_s": 180,
+  "history_compaction": {"token_limit": 32000}
 }

@@ -187,7 +187,10 @@ def agent_prompt(root, identity, smoke=False, approach_only=False):
             or hashlib.sha256(context["text"].encode("utf-8")).hexdigest() != context.get("sha256")
         ):
             raise ValueError("Frozen operator context hash mismatch")
-        prompt += "\n\nFrozen operator task context (task observations, never physical success evidence):\n" + context["text"]
+        prompt += (
+            "\n\nFrozen operator task context (task observations, never physical success evidence):\n"
+            + context["text"]
+        )
     if identity.get("verifier"):
         prompt += "\nIndependent skill verifier: you have no proposer source. Re-solve from this library and public observations, within two candidates. Report evidence honestly; the coordinator alone decides promotion."
     if identity.get("verification_contract"):
@@ -240,6 +243,8 @@ def launch(root, spec, identity, timeout_s, smoke=False, approach_only=False):
         "timeout_s": timeout_s,
         "mcp": mcp_configuration(root, spec, identity),
     }
+    if spec.get("history_compaction") is not None:
+        request["history_compaction"] = spec["history_compaction"]
     request_path = directory / "request.json"
     if request_path.exists() and backend.read_json(request_path) != request:
         raise ValueError("Agent request changed; start another session")

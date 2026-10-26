@@ -1,5 +1,6 @@
 {
   "codex": "/mnt/c/path/to/codex.exe",
   "host_python": "/mnt/c/path/to/python.exe",
-  "exchange_dir": "/absolute/path/to/ASPIRE/outputs/codex-exchange"
+  "exchange_dir": "/absolute/path/to/ASPIRE/outputs/codex-exchange",
+  "history_compaction": {"token_limit": 32000}
 }

@@ -46,10 +46,23 @@ def host_path(path, windows):
     return path
 
 
+def history_configuration(value):
+    """Validate native compaction without importing the package in the host worker."""
+    if value is None:
+        return None
+    if not isinstance(value, dict) or set(value) != {"token_limit"}:
+        raise ValueError("history_compaction requires exactly token_limit")
+    limit = value["token_limit"]
+    if type(limit) is not int or not 4096 <= limit <= 200000:
+        raise ValueError("history_compaction.token_limit must be an integer in [4096,200000]")
+    return {"token_limit": limit}
+
+
 def provider_spec(config):
     """Inspect the CLI normally; never read or copy its saved credentials."""
-    if set(config) - {"codex", "host_python", "exchange_dir", "model"}:
+    if set(config) - {"codex", "host_python", "exchange_dir", "model", "history_compaction"}:
         raise ValueError("Unknown Codex configuration field")
+    history = history_configuration(config.get("history_compaction"))
     executable = shutil.which(config.get("codex", "codex"))
     if not executable:
         raise ValueError("Codex CLI not found; configure codex in the local JSON file")
@@ -72,7 +85,7 @@ def provider_spec(config):
         raise ValueError(
             "Use a Windows-mounted exchange_dir, e.g. /mnt/d/AI/Aspire/outputs/codex-exchange"
         )
-    return {
+    result = {
         "codex": str(Path(executable).resolve()),
         "host_python": str(Path(python).resolve()),
         "exchange_dir": str(exchange),
@@ -82,6 +95,9 @@ def provider_spec(config):
         "auth": "saved ChatGPT login",
         "worker_sha256": digest(__file__),
     }
+    if history is not None:
+        result["history_compaction"] = history
+    return result
 
 
 def codex_command(request):
@@ -116,6 +132,9 @@ def codex_command(request):
         command.extend(["-c", f"mcp_servers.so101.{key}={json.dumps(value)}"])
     if request.get("model"):
         command.extend(["--model", request["model"]])
+    history = history_configuration(request.get("history_compaction"))
+    if history is not None:
+        command.extend(["-c", f"model_auto_compact_token_limit={history['token_limit']}"])
     return [*command, "-"]
 
 
@@ -274,6 +293,8 @@ def generate(round_dir, prompt, spec, timeout_s, *, schema=None):
             json.dumps(schema or SCHEMA, sort_keys=True).encode()
         ).hexdigest(),
     }
+    if spec.get("history_compaction") is not None:
+        request["history_compaction"] = spec["history_compaction"]
     request_path = directory / "request.json"
     if request_path.exists() and read_json(request_path) != request:
         raise ProviderError("A different generation already uses this exchange directory")

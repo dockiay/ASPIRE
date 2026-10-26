@@ -17,10 +17,19 @@ import requests
 from cap_harness.so101 import campaign as c
 from cap_harness.so101.debug_mcp import DESCRIPTIONS, SCHEMAS
 from cap_harness.so101.debug_tools import DebugTools
+from cap_harness.so101.history import add_usage, configuration, responses_input
 
 
 def provider_spec(config):
-    allowed = {"type", "model", "base_url", "api_key_env", "max_output_tokens", "request_timeout_s"}
+    allowed = {
+        "type",
+        "model",
+        "base_url",
+        "api_key_env",
+        "max_output_tokens",
+        "request_timeout_s",
+        "history_compaction",
+    }
     if set(config) - allowed or config.get("type") != "api":
         raise ValueError("Invalid API controller configuration")
     model = config.get("model")
@@ -46,7 +55,8 @@ def provider_spec(config):
     timeout = config.get("request_timeout_s", 180)
     if type(tokens) is not int or not 256 <= tokens <= 100000 or not 1 <= timeout <= 600:
         raise ValueError("Invalid API output budget or timeout")
-    return {
+    history = configuration(config.get("history_compaction"))
+    result = {
         "type": "api",
         "protocol": "responses",
         "model": model,
@@ -55,6 +65,9 @@ def provider_spec(config):
         "max_output_tokens": tokens,
         "request_timeout_s": timeout,
     }
+    if history is not None:
+        result["history_compaction"] = history
+    return result
 
 
 def strict_schema(schema):
@@ -132,13 +145,15 @@ def run(root, spec, prompt, schema, *, timeout_s=7200, requester=post, service=N
     transcript = [{"role": "developer", "content": prompt}]
     events = []
     usage_totals = {}
+    context_totals = {"requests": 0, "compactions": 0, "input_items": 0, "full_input_items": 0}
+    history = configuration(spec.get("history_compaction"))
     deadline = time.monotonic() + timeout_s
     for index in range(service.identity["max_calls"] + 16):
         turn = directory / f"turn-{index:04d}"
         turn.mkdir(exist_ok=True)
         payload = {
             "model": spec["model"],
-            "input": transcript,
+            "input": responses_input(transcript, history),
             "tools": tool_definitions(),
             "parallel_tool_calls": False,
             "store": False,
@@ -153,6 +168,10 @@ def run(root, spec, prompt, schema, *, timeout_s=7200, requester=post, service=N
                 }
             },
         }
+        if history is not None:
+            payload["context_management"] = [
+                {"type": "compaction", "compact_threshold": history["token_limit"]}
+            ]
         request_hash = c.canonical_sha256(payload)
         receipt = turn / "request.json"
         if receipt.exists() and c.read_json(receipt)["sha256"] != request_hash:
@@ -173,14 +192,24 @@ def run(root, spec, prompt, schema, *, timeout_s=7200, requester=post, service=N
         if c.read_json(turn / "response-hash.json")["sha256"] != c.file_sha(reply_path):
             raise ValueError("API reply was modified")
         reply = c.read_json(reply_path)
-        for key, value in (reply.get("usage") or {}).items():
-            if isinstance(value, int) and not isinstance(value, bool):
-                usage_totals[key] = usage_totals.get(key, 0) + value
+        add_usage(usage_totals, reply.get("usage"))
+        context_totals["requests"] += 1
+        context_totals["input_items"] += len(payload["input"])
+        context_totals["full_input_items"] += len(transcript)
         if reply.get("status", "completed") != "completed":
             raise ValueError("API response incomplete; inspect the saved reply")
         output = reply.get("output", [])
+        context_totals["compactions"] += sum(item.get("type") == "compaction" for item in output)
         transcript.extend(output)
         calls = [item for item in output if item["type"] == "function_call"]
+        if (
+            not calls
+            and any(item.get("type") == "compaction" for item in output)
+            and not any(item.get("type") == "message" for item in output)
+        ):
+            # Some compatible providers return the compaction boundary as a
+            # completed response of its own. Continue from that native state.
+            continue
         if not calls:
             raw = "".join(
                 part.get("text", "")
@@ -194,6 +223,7 @@ def run(root, spec, prompt, schema, *, timeout_s=7200, requester=post, service=N
                 raise ValueError("Controller returned before finishing the tool workflow")
             c.write_json(directory / "response.json", final)
             events.append({"type": "turn.completed", "usage": usage_totals})
+            c.write_json(directory / "context-usage.json", context_totals)
             (directory / "events.jsonl").write_text(
                 "".join(json.dumps(event) + "\n" for event in events), encoding="utf-8"
             )
